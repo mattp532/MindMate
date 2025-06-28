@@ -1,6 +1,7 @@
 -- Users identified by Firebase UID
 CREATE TABLE users (
   firebase_uid VARCHAR(128) PRIMARY KEY, -- Firebase UID is a string (~28 chars, so 128 is safe)
+  display_name VARCHAR(100) NOT NULL,
   name VARCHAR(100) NOT NULL,
   email VARCHAR(100) UNIQUE NOT NULL,
   bio TEXT,
@@ -8,6 +9,8 @@ CREATE TABLE users (
   longitude NUMERIC(9,6),
   city VARCHAR(100),
   country VARCHAR(100),
+  user_type VARCHAR(20) DEFAULT 'student', -- 'student' or 'teacher'
+  hourly_rate NUMERIC(8,2), -- For teachers
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

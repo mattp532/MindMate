@@ -32,6 +32,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
+import axios from 'axios';
 
 const schema = yup.object({
   displayName: yup.string().required('Display name is required').min(2, 'Display name must be at least 2 characters'),
@@ -58,8 +59,37 @@ const Register = () => {
     try {
       setError('');
       setLoading(true);
-      await signup(data.email, data.password, data.displayName);
-      navigate('/dashboard');
+      
+      // Create user in Firebase first
+      const firebaseResult = await signup(data.email, data.password, data.displayName);
+      
+      // Now create user in backend database using userService
+      try {
+        const token = await firebaseResult.user.getIdToken();
+        const response = await axios.post('http://localhost:8080/api/auth/signup', {
+          first_name: data.displayName.split(' ')[0] || data.displayName,
+          last_name: data.displayName.split(' ').slice(1).join(' ') || '',
+          user_type: 'student', // Default to student
+          bio: '',
+          location: null,
+          skills: [],
+          hourly_rate: null
+        }, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log('User created in database:', response.data);
+        navigate('/profile-setup');
+      } catch (backendError) {
+        console.error('Backend user creation error:', backendError);
+        // User is created in Firebase but not in backend
+        // You might want to handle this case differently
+        setError('Account created but there was an issue with profile setup. Please try logging in.');
+      }
+      
     } catch (error) {
       console.error('Registration error:', error);
       if (error.code === 'auth/email-already-in-use') {
@@ -78,8 +108,39 @@ const Register = () => {
     try {
       setError('');
       setLoading(true);
-      await signInWithGoogle();
-      navigate('/dashboard');
+      
+      // Sign in with Google
+      const firebaseResult = await signInWithGoogle();
+      
+      // Create user in backend database using userService
+      try {
+        const token = await firebaseResult.user.getIdToken();
+        const displayName = firebaseResult.user.displayName || 'User';
+        
+        const response = await axios.post('http://localhost:8080/api/auth/signup', {
+          first_name: displayName.split(' ')[0] || displayName,
+          last_name: displayName.split(' ').slice(1).join(' ') || '',
+          user_type: 'student', // Default to student
+          bio: '',
+          location: null,
+          skills: [],
+          hourly_rate: null
+        }, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log('Google user created in database:', response.data);
+        navigate('/profile-setup');
+      } catch (backendError) {
+        console.error('Backend Google user creation error:', backendError);
+        // User is signed in with Google but not in backend
+        // You might want to handle this case differently
+        setError('Signed in with Google but there was an issue with profile setup. Please try logging in.');
+      }
+      
     } catch (error) {
       console.error('Google sign-in error:', error);
       setError('Failed to sign in with Google.');

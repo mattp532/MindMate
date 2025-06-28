@@ -40,6 +40,7 @@ import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import DashboardPage from './pages/Dashboard';
 import Profile from './pages/Profile';
+import ProfileSetup from './pages/ProfileSetup';
 import ChatPage from './pages/Chat';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -394,6 +395,11 @@ const AppContent = () => {
               <Route path="/profile" element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              } />
+              <Route path="/profile-setup" element={
+                <ProtectedRoute>
+                  <ProfileSetup />
                 </ProtectedRoute>
               } />
               <Route path="/chat" element={

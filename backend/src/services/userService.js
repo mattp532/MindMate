@@ -1,7 +1,10 @@
 const pool = require('../db');
 
-async function createUser(firebaseUser) {
+async function createUser(firebaseUser, profileData = {}) {
   const { uid, email } = firebaseUser;
+  
+  // Use displayName from frontend, fallback to 'User' if not provided
+  const displayName = profileData.displayName || 'User';
 
   // Check if user exists
   const selectResult = await pool.query(
@@ -15,12 +18,19 @@ async function createUser(firebaseUser) {
     throw error;
   }
 
-  // Insert new user
+  // Insert new user with profile data
   const insertResult = await pool.query(
-    `INSERT INTO users (firebase_uid, email, created_at)
-     VALUES ($1, $2, NOW())
+    `INSERT INTO users (firebase_uid, display_name, email, bio, city, country, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW())
      RETURNING *`,
-    [uid, email]
+    [
+      uid, 
+      displayName, 
+      email, 
+      profileData.bio || null,
+      profileData.location || null,
+      null // country field - can be added later if needed
+    ]
   );
 
   return insertResult.rows[0];
