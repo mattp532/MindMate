@@ -2,7 +2,7 @@
 CREATE TABLE users (
   firebase_uid VARCHAR(128) PRIMARY KEY, -- Firebase UID is a string (~28 chars, so 128 is safe)
   display_name VARCHAR(100) NOT NULL,
-  name VARCHAR(100) NOT NULL,
+  name VARCHAR(100), -- Optional full name, can be filled in during profile completion
   email VARCHAR(100) UNIQUE NOT NULL,
   bio TEXT,
   latitude NUMERIC(9,6),

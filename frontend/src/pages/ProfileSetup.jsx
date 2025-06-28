@@ -121,8 +121,7 @@ const ProfileSetup = () => {
       
       const profileData = {
         ...data,
-        skills: skills,
-        displayName: data.fullName
+        skills: skills
       };
 
       // Update user profile in backend

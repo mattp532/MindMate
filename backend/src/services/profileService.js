@@ -18,13 +18,11 @@ exports.updateProfile = async (firebaseUid, profileData) => {
     location, 
     userType, 
     skills, 
-    hourlyRate,
-    displayName 
+    hourlyRate
   } = profileData;
   
-  // Use displayName or fullName as the name field
-  const name = displayName || fullName;
-  
+  // Use fullName from the profile form to update the name field
+  // Keep display_name unchanged (it was set during initial signup)
   const res = await pool.query(
     `UPDATE users SET 
       name = $1, 
@@ -34,7 +32,7 @@ exports.updateProfile = async (firebaseUid, profileData) => {
       hourly_rate = $5 
      WHERE firebase_uid = $6 
      RETURNING firebase_uid, email, name, bio, city, country, user_type, hourly_rate`,
-    [name, bio, location, userType, hourlyRate, firebaseUid]
+    [fullName, bio, location, userType, hourlyRate, firebaseUid]
   );
   
   if (res.rows.length === 0) {

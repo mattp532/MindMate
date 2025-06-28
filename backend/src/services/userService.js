@@ -18,7 +18,7 @@ async function createUser(firebaseUser, profileData = {}) {
     throw error;
   }
 
-  // Insert new user with profile data
+  // Insert new user with only display_name (name will be NULL initially)
   const insertResult = await pool.query(
     `INSERT INTO users (firebase_uid, display_name, email, bio, city, country, created_at)
      VALUES ($1, $2, $3, $4, $5, $6, NOW())
