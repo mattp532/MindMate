@@ -40,10 +40,11 @@ import {
   OnlinePrediction,
   Schedule
 } from '@mui/icons-material';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
 // Fix for default markers in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -53,11 +54,23 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
+const MapUpdater = ({ coords }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (coords) {
+      map.flyTo(coords, 14); // zoom to 14 for a slightly closer view
+    }
+  }, [coords, map]);
+  return null;
+};
+
 const Dashboard = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [tabValue, setTabValue] = React.useState(0);
   const [mapLoaded, setMapLoaded] = React.useState(false);
+  const [selectedCoords, setSelectedCoords] = React.useState(null);
+  const [selectedUserId, setSelectedUserId] = React.useState(null);
   const navigate = useNavigate();
 
   // Mock data for demonstration
@@ -116,7 +129,7 @@ const Dashboard = () => {
   const torontoCoords = [43.6532, -79.3832];
 
   // Map component with proper error handling
-  const MapComponent = () => {
+  const MapComponent = ({ selectedCoords }) => {
     React.useEffect(() => {
       setMapLoaded(true);
     }, []);
@@ -138,7 +151,7 @@ const Dashboard = () => {
 
     return (
       <MapContainer 
-        center={torontoCoords} 
+        center={selectedCoords || torontoCoords} 
         zoom={10} 
         style={{ height: '100%', width: '100%' }}
         key={mapLoaded ? 'loaded' : 'loading'}
@@ -147,6 +160,12 @@ const Dashboard = () => {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" 
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' 
         />
+        {selectedCoords && (
+          <>
+            <MapUpdater coords={selectedCoords} />
+            <Circle center={selectedCoords} radius={1609} color="purple" />
+          </>
+        )}
         {mockMatches.map((match) => (
           <Marker key={match.id} position={match.coordinates}>
             <Popup>
@@ -228,7 +247,10 @@ const Dashboard = () => {
             <List sx={{ p: 0 }}>
               {mockMatches.map((match, index) => (
                 <Grow key={match.id} in={true} timeout={800 + index * 200}>
-                  <ListItem sx={{ px: 0, py: 1 }}>
+                  <ListItem 
+                    sx={{ px: 0, py: 1, cursor: 'pointer', bgcolor: selectedUserId === match.id ? 'rgba(102, 126, 234, 0.08)' : 'inherit' }}
+                    onClick={() => { setSelectedCoords(match.coordinates); setSelectedUserId(match.id); }}
+                  >
                     <ListItemButton sx={{ borderRadius: 3, mb: 2, p: 3, transition: 'all 0.3s ease-in-out', border: '1px solid rgba(0,0,0,0.06)', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.04)', transform: 'translateY(-2px)', boxShadow: '0 8px 25px rgba(0,0,0,0.1)', borderColor: 'primary.main' } }}>
                       <ListItemAvatar>
                         <Badge overlap="circular" anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} badgeContent={<Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: match.isOnline ? 'success.main' : 'grey.400', border: '3px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }} />}> <Avatar sx={{ width: 64, height: 64, bgcolor: 'primary.main', fontSize: '1.5rem', fontWeight: 700, boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)' }}>{match.avatar}</Avatar> </Badge>
@@ -302,7 +324,7 @@ const Dashboard = () => {
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 3, color: 'text.primary' }}>Match Locations</Typography>
             </Box>
             <Box sx={{ height: 500, width: '100%', borderRadius: 3, overflow: 'hidden', border: '1px solid rgba(0,0,0,0.1)' }}>
-              <MapComponent />
+              <MapComponent selectedCoords={selectedCoords} />
             </Box>
           </Paper>
           
