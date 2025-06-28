@@ -45,8 +45,10 @@ import {
   Videocam
 } from '@mui/icons-material';
 import VideoAssessment from '../components/VideoAssessment';
+import { useAuth } from '../contexts/AuthContext';
 
 const Profile = () => {
+  const { currentUser } = useAuth();
   // Simulate userId (in real app, get from auth context or props)
   const userId = 'user-001'; // Change this value to simulate a new user
 
@@ -69,6 +71,10 @@ const Profile = () => {
   const [step, setStep] = React.useState(0); // 0: Add Skill, 1: Verify Skill, 2: Done
   const [showCongrats, setShowCongrats] = React.useState(false);
   const [lastVerifiedSkill, setLastVerifiedSkill] = React.useState(null);
+
+  // Compute display name and avatar
+  const displayName = currentUser?.displayName || profile.name;
+  const avatarUrl = currentUser?.photoURL || null;
 
   // Reset all state when userId changes (simulate new user)
   React.useEffect(() => {
@@ -199,8 +205,13 @@ const Profile = () => {
           {/* Profile Overview */}
           <Box sx={{ minWidth: 320, maxWidth: 400, flex: '0 0 320px', display: 'flex', flexDirection: 'column' }}>
             <Paper elevation={3} sx={{ p: { xs: 2, md: 4 }, borderRadius: 4, textAlign: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', height: 400, display: 'flex', flexDirection: 'column', justifyContent: 'stretch' }}>
-              <Avatar sx={{ width: { xs: 80, md: 120 }, height: { xs: 80, md: 120 }, mx: 'auto', mb: 2, bgcolor: 'primary.main', fontSize: { xs: '2rem', md: '3rem' }, boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)' }}>{profile.name.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase()}</Avatar>
-              <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', fontSize: { xs: '1.1rem', md: '1.5rem' }, mb: 1 }}>{profile.name}</Typography>
+              <Avatar 
+                src={avatarUrl || undefined}
+                sx={{ width: { xs: 80, md: 120 }, height: { xs: 80, md: 120 }, mx: 'auto', mb: 2, bgcolor: 'primary.main', fontSize: { xs: '2rem', md: '3rem' }, boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)' }}
+              >
+                {!avatarUrl && displayName.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase()}
+              </Avatar>
+              <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', fontSize: { xs: '1.1rem', md: '1.5rem' }, mb: 1 }}>{displayName}</Typography>
               <Typography variant="body1" color="text.secondary" gutterBottom sx={{ fontSize: { xs: '0.85rem', md: '1rem' }, mb: 2 }}>{profile.title}</Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 2 }}>
                 <Star sx={{ color: 'warning.main', fontSize: 18 }} />
