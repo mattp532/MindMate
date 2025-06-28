@@ -262,11 +262,19 @@ const Dashboard = () => {
                           size="small" 
                           startIcon={<Message />} 
                           sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)', '&:hover': { boxShadow: '0 6px 16px rgba(102, 126, 234, 0.4)', transform: 'translateY(-1px)' } }}
-                          onClick={() => navigate(`/chat?userId=${match.id}`)}
+                          onClick={e => { e.stopPropagation(); navigate(`/chat?userId=${match.id}`); }}
                         >
                           Message
                         </Button>
-                        <Button variant="outlined" size="small" startIcon={<VideoCall />} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, borderColor: 'primary.main', color: 'primary.main', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.08)', borderColor: 'primary.dark' } }}>Call</Button>
+                        <Button 
+                          variant="outlined" 
+                          size="small" 
+                          startIcon={<VideoCall />} 
+                          sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, borderColor: 'primary.main', color: 'primary.main', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.08)', borderColor: 'primary.dark' } }}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          Call
+                        </Button>
                       </Box>
                     </ListItemButton>
                   </ListItem>
