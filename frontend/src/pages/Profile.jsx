@@ -36,11 +36,14 @@ import {
   Pending,
   Assignment,
   VideoCall,
-  Quiz
+  Videocam
 } from '@mui/icons-material';
+import VideoAssessment from '../components/VideoAssessment';
 
 const Profile = () => {
   const [activeStep, setActiveStep] = React.useState(1);
+  const [showVideoAssessment, setShowVideoAssessment] = React.useState(false);
+  const [assessmentResult, setAssessmentResult] = React.useState(null);
   const [skills, setSkills] = React.useState([
     { name: "JavaScript", level: "Advanced", verified: true },
     { name: "React", level: "Intermediate", verified: true },
@@ -55,14 +58,14 @@ const Profile = () => {
       completed: true
     },
     {
-      label: 'Skill Assessment',
-      description: 'Take a quiz to verify your teaching abilities',
-      completed: false
+      label: 'Video Assessment',
+      description: 'Upload a video demonstrating your teaching abilities',
+      completed: assessmentResult !== null
     },
     {
-      label: 'Video Interview',
-      description: 'Schedule a brief video call for final verification',
-      completed: false
+      label: 'Final Verification',
+      description: 'Complete final verification to start teaching',
+      completed: assessmentResult && assessmentResult.score >= 80
     }
   ];
 
@@ -71,6 +74,24 @@ const Profile = () => {
       setSkills([...skills, { name: newSkill, level: "Beginner", verified: false }]);
       setNewSkill("");
     }
+  };
+
+  const handleAssessmentComplete = (result) => {
+    setAssessmentResult(result);
+    setShowVideoAssessment(false);
+    
+    // Update verification progress
+    if (result.score >= 80) {
+      setActiveStep(3);
+    } else {
+      setActiveStep(2);
+    }
+  };
+
+  const getVerificationProgress = () => {
+    if (assessmentResult && assessmentResult.score >= 80) return 100;
+    if (assessmentResult) return 66;
+    return 33;
   };
 
   return (
@@ -280,34 +301,51 @@ const Profile = () => {
                           </Typography>
                           {index === 1 && (
                             <Box sx={{ mb: 3 }}>
-                              <Button 
-                                variant="contained" 
-                                startIcon={<Quiz />}
-                                sx={{ 
-                                  mr: 2,
-                                  mb: { xs: 2, sm: 0 },
-                                  borderRadius: 2,
-                                  py: 1.5,
-                                  fontWeight: 'bold',
-                                  textTransform: 'none'
-                                }}
-                              >
-                                Start Assessment
-                              </Button>
-                              <Button 
-                                variant="outlined"
-                                sx={{ 
-                                  borderRadius: 2,
-                                  py: 1.5,
-                                  fontWeight: 'bold',
-                                  textTransform: 'none'
-                                }}
-                              >
-                                View Sample Questions
-                              </Button>
+                              {!assessmentResult ? (
+                                <Button 
+                                  variant="contained" 
+                                  startIcon={<Videocam />}
+                                  onClick={() => setShowVideoAssessment(true)}
+                                  sx={{ 
+                                    mr: 2,
+                                    mb: { xs: 2, sm: 0 },
+                                    borderRadius: 2,
+                                    py: 1.5,
+                                    fontWeight: 'bold',
+                                    textTransform: 'none'
+                                  }}
+                                >
+                                  Start Video Assessment
+                                </Button>
+                              ) : (
+                                <Box>
+                                  <Alert 
+                                    severity={assessmentResult.score >= 80 ? 'success' : 'warning'} 
+                                    sx={{ mb: 2, borderRadius: 2 }}
+                                  >
+                                    Assessment Score: {assessmentResult.score}/100
+                                    {assessmentResult.score >= 80 
+                                      ? ' - Excellent! You can proceed to final verification.'
+                                      : ' - Good effort, but you need to improve. Please try again.'
+                                    }
+                                  </Alert>
+                                  <Button 
+                                    variant="outlined"
+                                    onClick={() => setShowVideoAssessment(true)}
+                                    sx={{ 
+                                      borderRadius: 2,
+                                      py: 1.5,
+                                      fontWeight: 'bold',
+                                      textTransform: 'none'
+                                    }}
+                                  >
+                                    Retake Assessment
+                                  </Button>
+                                </Box>
+                              )}
                             </Box>
                           )}
-                          {index === 2 && (
+                          {index === 2 && assessmentResult && assessmentResult.score >= 80 && (
                             <Box sx={{ mb: 3 }}>
                               <Button 
                                 variant="contained" 
@@ -321,7 +359,7 @@ const Profile = () => {
                                   textTransform: 'none'
                                 }}
                               >
-                                Schedule Interview
+                                Complete Final Verification
                               </Button>
                               <Button 
                                 variant="outlined"
@@ -332,7 +370,7 @@ const Profile = () => {
                                   textTransform: 'none'
                                 }}
                               >
-                                View Available Slots
+                                View Requirements
                               </Button>
                             </Box>
                           )}
@@ -356,11 +394,11 @@ const Profile = () => {
                         mb: 2
                       }}
                     >
-                      <strong>Verification Progress:</strong> 33% Complete
+                      <strong>Verification Progress:</strong> {getVerificationProgress()}% Complete
                     </Typography>
                     <LinearProgress 
                       variant="determinate" 
-                      value={33} 
+                      value={getVerificationProgress()} 
                       sx={{ 
                         height: 10, 
                         borderRadius: 5,
@@ -629,6 +667,14 @@ const Profile = () => {
           </Grid>
         </Grid>
       </Container>
+
+      {/* Video Assessment Dialog */}
+      {showVideoAssessment && (
+        <VideoAssessment
+          onAssessmentComplete={handleAssessmentComplete}
+          onClose={() => setShowVideoAssessment(false)}
+        />
+      )}
     </Box>
   );
 };

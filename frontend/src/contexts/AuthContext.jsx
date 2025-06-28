@@ -5,7 +5,6 @@ import {
   signOut, 
   onAuthStateChanged,
   GoogleAuthProvider,
-  GithubAuthProvider,
   signInWithPopup,
   updateProfile,
   sendPasswordResetEmail

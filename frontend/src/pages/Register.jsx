@@ -21,6 +21,7 @@ import {
   Lock, 
   Person,
   Google, 
+  Facebook,
   Visibility,
   VisibilityOff,
   School,
