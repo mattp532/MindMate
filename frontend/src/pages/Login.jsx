@@ -13,7 +13,8 @@ import {
   Fade,
   Grow,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  CircularProgress
 } from '@mui/material';
 import { 
   Email, 
@@ -25,11 +26,60 @@ import {
   School,
   ArrowForward
 } from '@mui/icons-material';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
+
+const schema = yup.object({
+  email: yup.string().email('Please enter a valid email').required('Email is required'),
+  password: yup.string().min(6, 'Password must be at least 6 characters').required('Password is required'),
+}).required();
 
 const Login = () => {
   const [showPassword, setShowPassword] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { login, signInWithGoogle } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const from = location.state?.from?.pathname || '/dashboard';
+
+  const { register, handleSubmit, formState: { errors } } = useForm({
+    resolver: yupResolver(schema)
+  });
+
+  const onSubmit = async (data) => {
+    try {
+      setError('');
+      setLoading(true);
+      await login(data.email, data.password);
+      navigate(from, { replace: true });
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('Failed to sign in. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setError('');
+      setLoading(true);
+      await signInWithGoogle();
+      navigate(from, { replace: true });
+    } catch (error) {
+      console.error('Google sign-in error:', error);
+      setError('Failed to sign in with Google.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Box sx={{ 
@@ -119,7 +169,13 @@ const Login = () => {
               </Typography>
             </Box>
 
-            <Box component="form" noValidate autoComplete="off" sx={{ position: 'relative' }}>
+            {error && (
+              <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+                {error}
+              </Alert>
+            )}
+
+            <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ position: 'relative' }}>
               <Grow in={true} timeout={1200}>
                 <TextField 
                   label="Email Address" 
@@ -127,6 +183,9 @@ const Login = () => {
                   fullWidth 
                   margin="normal" 
                   required
+                  {...register('email')}
+                  error={!!errors.email}
+                  helperText={errors.email?.message}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -157,6 +216,9 @@ const Login = () => {
                   fullWidth 
                   margin="normal" 
                   required
+                  {...register('password')}
+                  error={!!errors.password}
+                  helperText={errors.password?.message}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -238,11 +300,13 @@ const Login = () => {
 
               <Grow in={true} timeout={1600}>
                 <Button 
+                  type="submit"
                   variant="contained" 
                   color="primary" 
                   fullWidth 
                   size="large"
-                  endIcon={<ArrowForward />}
+                  disabled={loading}
+                  endIcon={loading ? <CircularProgress size={20} color="inherit" /> : <ArrowForward />}
                   sx={{ 
                     py: 2, 
                     mb: 4,
@@ -255,10 +319,14 @@ const Login = () => {
                       boxShadow: '0 12px 40px rgba(102, 126, 234, 0.4)',
                       transform: 'translateY(-2px)'
                     },
+                    '&:disabled': {
+                      background: 'rgba(0, 0, 0, 0.12)',
+                      boxShadow: 'none'
+                    },
                     transition: 'all 0.3s ease-in-out'
                   }}
                 >
-                  Sign In
+                  {loading ? 'Signing In...' : 'Sign In'}
                 </Button>
               </Grow>
 
@@ -286,6 +354,8 @@ const Login = () => {
                     variant="outlined" 
                     fullWidth 
                     startIcon={<Google />}
+                    onClick={handleGoogleSignIn}
+                    disabled={loading}
                     sx={{ 
                       py: 1.5,
                       borderRadius: 3,
@@ -299,6 +369,10 @@ const Login = () => {
                         bgcolor: 'rgba(102, 126, 234, 0.04)',
                         transform: 'translateY(-1px)'
                       },
+                      '&:disabled': {
+                        borderColor: 'rgba(0, 0, 0, 0.12)',
+                        color: 'rgba(0, 0, 0, 0.38)'
+                      },
                       transition: 'all 0.2s ease-in-out'
                     }}
                   >
@@ -310,6 +384,7 @@ const Login = () => {
                     variant="outlined" 
                     fullWidth 
                     startIcon={<Facebook />}
+                    disabled={loading}
                     sx={{ 
                       py: 1.5,
                       borderRadius: 3,
@@ -322,6 +397,10 @@ const Login = () => {
                         borderColor: 'primary.main',
                         bgcolor: 'rgba(102, 126, 234, 0.04)',
                         transform: 'translateY(-1px)'
+                      },
+                      '&:disabled': {
+                        borderColor: 'rgba(0, 0, 0, 0.12)',
+                        color: 'rgba(0, 0, 0, 0.38)'
                       },
                       transition: 'all 0.2s ease-in-out'
                     }}

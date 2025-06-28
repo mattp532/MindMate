@@ -18,7 +18,9 @@ import {
   useTheme,
   useMediaQuery,
   Fade,
-  Slide
+  Slide,
+  Menu,
+  MenuItem
 } from '@mui/material';
 import { 
   Home, 
@@ -27,8 +29,10 @@ import {
   Chat, 
   Notifications,
   School,
-  Menu,
-  Close
+  Menu as MenuIcon,
+  Close,
+  Logout,
+  AccountCircle
 } from '@mui/icons-material';
 import HomePage from './pages/Home';
 import Login from './pages/Login';
@@ -36,21 +40,42 @@ import Register from './pages/Register';
 import DashboardPage from './pages/Dashboard';
 import Profile from './pages/Profile';
 import ChatPage from './pages/Chat';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 
 const Navigation = () => {
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [anchorEl, setAnchorEl] = React.useState(null);
+  const { currentUser, logout } = useAuth();
 
   const navItems = [
     { path: '/', label: 'Home', icon: <Home /> },
-    { path: '/dashboard', label: 'Dashboard', icon: <Dashboard /> },
-    { path: '/chat', label: 'Chat', icon: <Chat /> },
+    { path: '/dashboard', label: 'Dashboard', icon: <Dashboard />, protected: true },
+    { path: '/chat', label: 'Chat', icon: <Chat />, protected: true },
   ];
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
+  };
+
+  const handleProfileMenuOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleProfileMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      handleProfileMenuClose();
+    } catch (error) {
+      console.error('Failed to log out:', error);
+    }
   };
 
   const isActive = (path) => location.pathname === path;
@@ -163,7 +188,7 @@ const Navigation = () => {
                   }
                 }}
               >
-                <Menu />
+                <MenuIcon />
               </IconButton>
               <School sx={{ 
                 fontSize: { xs: 28, md: 32 },
@@ -238,51 +263,84 @@ const Navigation = () => {
                 </Badge>
               </IconButton>
               
-              <Button 
-                component={Link} 
-                to="/profile"
-                startIcon={<Person />}
-                sx={{ 
-                  borderRadius: 3,
-                  px: { xs: 1.5, md: 2.5 },
-                  py: { xs: 0.75, md: 1 },
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  fontSize: { xs: '0.85rem', md: '0.95rem' },
-                  color: 'text.primary',
-                  bgcolor: 'rgba(102, 126, 234, 0.08)',
-                  '&:hover': {
-                    bgcolor: 'rgba(102, 126, 234, 0.12)',
-                    transform: 'translateY(-1px)'
-                  },
-                  transition: 'all 0.2s ease-in-out'
-                }}
-              >
-                Profile
-              </Button>
-
-              <Button 
-                variant="contained" 
-                component={Link} 
-                to="/login"
-                sx={{ 
-                  borderRadius: 3,
-                  px: { xs: 1.5, md: 2.5 },
-                  py: { xs: 0.75, md: 1 },
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  fontSize: { xs: '0.85rem', md: '0.95rem' },
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)',
-                  '&:hover': {
-                    boxShadow: '0 6px 25px rgba(102, 126, 234, 0.4)',
-                    transform: 'translateY(-1px)'
-                  },
-                  transition: 'all 0.2s ease-in-out'
-                }}
-              >
-                Login
-              </Button>
+              {currentUser ? (
+                <>
+                  <Button 
+                    component={Link} 
+                    to="/profile"
+                    startIcon={<Person />}
+                    sx={{ 
+                      borderRadius: 3,
+                      px: { xs: 1.5, md: 2.5 },
+                      py: { xs: 0.75, md: 1 },
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      fontSize: { xs: '0.85rem', md: '0.95rem' },
+                      color: 'text.primary',
+                      bgcolor: 'rgba(102, 126, 234, 0.08)',
+                      '&:hover': {
+                        bgcolor: 'rgba(102, 126, 234, 0.12)',
+                        transform: 'translateY(-1px)'
+                      },
+                      transition: 'all 0.2s ease-in-out'
+                    }}
+                  >
+                    Profile
+                  </Button>
+                  <IconButton
+                    onClick={handleProfileMenuOpen}
+                    sx={{ 
+                      bgcolor: 'rgba(102, 126, 234, 0.08)',
+                      '&:hover': {
+                        bgcolor: 'rgba(102, 126, 234, 0.12)'
+                      }
+                    }}
+                  >
+                    <AccountCircle color="primary" />
+                  </IconButton>
+                  <Menu
+                    anchorEl={anchorEl}
+                    open={Boolean(anchorEl)}
+                    onClose={handleProfileMenuClose}
+                    sx={{
+                      '& .MuiPaper-root': {
+                        borderRadius: 3,
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        backdropFilter: 'blur(20px)'
+                      }
+                    }}
+                  >
+                    <MenuItem onClick={handleLogout} sx={{ gap: 1 }}>
+                      <Logout fontSize="small" />
+                      Logout
+                    </MenuItem>
+                  </Menu>
+                </>
+              ) : (
+                <Button 
+                  variant="contained" 
+                  component={Link} 
+                  to="/login"
+                  sx={{ 
+                    borderRadius: 3,
+                    px: { xs: 1.5, md: 2.5 },
+                    py: { xs: 0.75, md: 1 },
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    fontSize: { xs: '0.85rem', md: '0.95rem' },
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)',
+                    '&:hover': {
+                      boxShadow: '0 6px 25px rgba(102, 126, 234, 0.4)',
+                      transform: 'translateY(-1px)'
+                    },
+                    transition: 'all 0.2s ease-in-out'
+                  }}
+                >
+                  Login
+                </Button>
+              )}
             </Box>
           </Toolbar>
         </Container>
@@ -311,7 +369,7 @@ const Navigation = () => {
   );
 };
 
-const App = () => {
+const AppContent = () => {
   return (
     <Router>
       <Box sx={{ 
@@ -326,14 +384,34 @@ const App = () => {
               <Route path="/" element={<HomePage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/chat" element={<ChatPage />} />
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <DashboardPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              } />
+              <Route path="/chat" element={
+                <ProtectedRoute>
+                  <ChatPage />
+                </ProtectedRoute>
+              } />
             </Routes>
           </Box>
         </Slide>
       </Box>
     </Router>
+  );
+};
+
+const App = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 };
 
