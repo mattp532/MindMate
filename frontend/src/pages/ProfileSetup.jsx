@@ -40,13 +40,8 @@ const schema = yup.object({
   fullName: yup.string().required('Full name is required').min(2, 'Full name must be at least 2 characters'),
   bio: yup.string().required('Bio is required').min(10, 'Bio must be at least 10 characters'),
   location: yup.string().required('Location is required'),
-  userType: yup.string().required('Please select your user type'),
   skills: yup.array().min(1, 'Please add at least one skill'),
-  hourlyRate: yup.number().when('userType', {
-    is: 'teacher',
-    then: yup.number().required('Hourly rate is required for teachers').min(1, 'Hourly rate must be at least $1'),
-    otherwise: yup.number().optional()
-  })
+  interests: yup.array().min(1, 'Please add at least one interest')
 }).required();
 
 const ProfileSetup = () => {
@@ -54,7 +49,9 @@ const ProfileSetup = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [skills, setSkills] = useState([]);
+  const [interests, setInterests] = useState([]);
   const [newSkill, setNewSkill] = useState('');
+  const [newInterest, setNewInterest] = useState('');
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { currentUser } = useAuth();
@@ -70,22 +67,17 @@ const ProfileSetup = () => {
     {
       label: 'Basic Information',
       description: 'Tell us about yourself',
-      icon: <Person />
+      icon: Person
     },
     {
-      label: 'Bio & Location',
-      description: 'Share your story and location',
-      icon: <Description />
-    },
-    {
-      label: 'Skills & Expertise',
-      description: 'What can you teach or learn?',
-      icon: <School />
+      label: 'Skills & Interests',
+      description: 'What are your skills and interests?',
+      icon: School
     },
     {
       label: 'Review & Complete',
       description: 'Review your profile and finish setup',
-      icon: <CheckCircle />
+      icon: CheckCircle
     }
   ];
 
@@ -102,6 +94,21 @@ const ProfileSetup = () => {
     const updatedSkills = skills.filter(skill => skill !== skillToRemove);
     setSkills(updatedSkills);
     setValue('skills', updatedSkills);
+  };
+
+  const handleAddInterest = () => {
+    if (newInterest.trim() && !interests.includes(newInterest.trim())) {
+      const updatedInterests = [...interests, newInterest.trim()];
+      setInterests(updatedInterests);
+      setValue('interests', updatedInterests);
+      setNewInterest('');
+    }
+  };
+
+  const handleRemoveInterest = (interestToRemove) => {
+    const updatedInterests = interests.filter(interest => interest !== interestToRemove);
+    setInterests(updatedInterests);
+    setValue('interests', updatedInterests);
   };
 
   const handleNext = () => {
@@ -121,11 +128,12 @@ const ProfileSetup = () => {
       
       const profileData = {
         ...data,
-        skills: skills
+        skills: skills,
+        interests: interests
       };
 
       // Update user profile in backend
-      const response = await axios.put('http://localhost:8080/api/profile/update', profileData, {
+      const response = await axios.put('http://localhost:8080/api/profile', profileData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -133,7 +141,7 @@ const ProfileSetup = () => {
       });
 
       console.log('Profile updated successfully:', response.data);
-      navigate('/dashboard');
+      navigate('/profile');
     } catch (error) {
       console.error('Profile update error:', error);
       setError('Failed to update profile. Please try again.');
@@ -167,57 +175,6 @@ const ProfileSetup = () => {
               sx={{ mb: 3 }}
             />
 
-            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', mb: 2 }}>
-              I want to:
-            </Typography>
-            
-            <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' }, mb: 3 }}>
-              <Button
-                variant={watchedUserType === 'student' ? 'contained' : 'outlined'}
-                onClick={() => setValue('userType', 'student')}
-                startIcon={<School />}
-                fullWidth
-                sx={{ py: 2, textTransform: 'none', fontWeight: 'bold' }}
-              >
-                Learn from others
-              </Button>
-              <Button
-                variant={watchedUserType === 'teacher' ? 'contained' : 'outlined'}
-                onClick={() => setValue('userType', 'teacher')}
-                startIcon={<Star />}
-                fullWidth
-                sx={{ py: 2, textTransform: 'none', fontWeight: 'bold' }}
-              >
-                Teach others
-              </Button>
-            </Box>
-
-            {watchedUserType === 'teacher' && (
-              <TextField
-                label="Hourly Rate ($)"
-                type="number"
-                fullWidth
-                margin="normal"
-                required
-                {...register('hourlyRate')}
-                error={!!errors.hourlyRate}
-                helperText={errors.hourlyRate?.message}
-                InputProps={{
-                  startAdornment: <Typography>$</Typography>,
-                }}
-                sx={{ mb: 3 }}
-              />
-            )}
-          </Box>
-        );
-
-      case 1:
-        return (
-          <Box>
-            <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
-              Tell us more about yourself
-            </Typography>
-            
             <TextField
               label="Bio"
               multiline
@@ -251,16 +208,17 @@ const ProfileSetup = () => {
           </Box>
         );
 
-      case 2:
+      case 1:
         return (
           <Box>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
               What are your skills and interests?
             </Typography>
             
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1" gutterBottom>
-                Add skills you {watchedUserType === 'teacher' ? 'can teach' : 'want to learn'}:
+            {/* Skills Section */}
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', mb: 2 }}>
+                Skills you have:
               </Typography>
               
               <Box sx={{ display: 'flex', gap: 2, mb: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
@@ -295,10 +253,49 @@ const ProfileSetup = () => {
                 ))}
               </Box>
             </Box>
+
+            {/* Interests Section */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', mb: 2 }}>
+                Interests you have:
+              </Typography>
+              
+              <Box sx={{ display: 'flex', gap: 2, mb: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+                <TextField
+                  label="Add an interest"
+                  value={newInterest}
+                  onChange={(e) => setNewInterest(e.target.value)}
+                  placeholder="e.g., Reading, Travel, Music"
+                  fullWidth
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddInterest()}
+                />
+                <Button
+                  variant="contained"
+                  onClick={handleAddInterest}
+                  disabled={!newInterest.trim()}
+                  sx={{ minWidth: 100, textTransform: 'none' }}
+                >
+                  Add
+                </Button>
+              </Box>
+
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {interests.map((interest, index) => (
+                  <Chip
+                    key={index}
+                    label={interest}
+                    onDelete={() => handleRemoveInterest(interest)}
+                    color="secondary"
+                    variant="outlined"
+                    sx={{ fontWeight: 'bold' }}
+                  />
+                ))}
+              </Box>
+            </Box>
           </Box>
         );
 
-      case 3:
+      case 2:
         return (
           <Box>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
@@ -314,9 +311,6 @@ const ProfileSetup = () => {
                   <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
                     {watch('fullName') || 'Your Name'}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {watch('userType') === 'teacher' ? 'Teacher' : 'Student'}
-                  </Typography>
                 </Box>
               </Box>
               
@@ -328,18 +322,21 @@ const ProfileSetup = () => {
                 <strong>Location:</strong> {watch('location') || 'No location provided'}
               </Typography>
               
-              {watch('userType') === 'teacher' && watch('hourlyRate') && (
-                <Typography variant="body1" sx={{ mb: 2 }}>
-                  <strong>Hourly Rate:</strong> ${watch('hourlyRate')}/hour
-                </Typography>
-              )}
-              
               <Typography variant="body1" sx={{ mb: 1 }}>
                 <strong>Skills:</strong>
               </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
                 {skills.map((skill, index) => (
-                  <Chip key={index} label={skill} size="small" />
+                  <Chip key={index} label={skill} size="small" color="primary" />
+                ))}
+              </Box>
+
+              <Typography variant="body1" sx={{ mb: 1 }}>
+                <strong>Interests:</strong>
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {interests.map((interest, index) => (
+                  <Chip key={index} label={interest} size="small" color="secondary" />
                 ))}
               </Box>
             </Paper>
@@ -411,7 +408,7 @@ const ProfileSetup = () => {
               {steps.map((step, index) => (
                 <Step key={step.label}>
                   <StepLabel 
-                    StepIconComponent={step.icon}
+                    StepIconComponent={() => React.createElement(step.icon)}
                     sx={{
                       '& .MuiStepLabel-label': {
                         fontWeight: 'bold'
