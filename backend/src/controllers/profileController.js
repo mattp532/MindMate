@@ -19,3 +19,19 @@ exports.updateProfile = async (req, res) => {
     res.status(500).json({ error: 'Failed to update profile' });
   }
 };
+
+exports.updateSkillVerification = async (req, res) => {
+  try {
+    const { skillName, verified, score } = req.body;
+    
+    if (!skillName || typeof verified !== 'boolean') {
+      return res.status(400).json({ error: 'Invalid request data' });
+    }
+    
+    await profileService.updateSkillVerification(req.user.uid, skillName, verified, score);
+    res.status(200).json({ success: true });
+  } catch (err) {
+    console.error('Error updating skill verification:', err);
+    res.status(500).json({ error: 'Failed to update skill verification' });
+  }
+};

@@ -20,17 +20,23 @@ CREATE TABLE skills (
   name VARCHAR(100) UNIQUE NOT NULL
 );
 
--- Skills user can teach
-CREATE TABLE user_teaches (
+-- User skills with verification status
+CREATE TABLE user_skills (
+  id SERIAL PRIMARY KEY,
   user_firebase_uid VARCHAR(128) REFERENCES users(firebase_uid) ON DELETE CASCADE,
   skill_id INT REFERENCES skills(id) ON DELETE CASCADE,
-  PRIMARY KEY (user_firebase_uid, skill_id)
+  verified BOOLEAN DEFAULT FALSE,
+  verification_score NUMERIC(5,2), -- Score from 0-100
+  verified_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_firebase_uid, skill_id)
 );
 
--- Skills user wants to learn
-CREATE TABLE user_learns (
+-- User interests (skills they want to learn)
+CREATE TABLE user_interests (
   user_firebase_uid VARCHAR(128) REFERENCES users(firebase_uid) ON DELETE CASCADE,
   skill_id INT REFERENCES skills(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (user_firebase_uid, skill_id)
 );
 

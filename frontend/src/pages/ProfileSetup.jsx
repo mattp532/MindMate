@@ -17,7 +17,8 @@ import {
   useMediaQuery,
   CircularProgress,
   Avatar,
-  Chip
+  Chip,
+  Autocomplete
 } from '@mui/material';
 import {
   Person,
@@ -36,10 +37,116 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import axios from 'axios';
 
+// Location data with major cities and countries
+const locations = [
+  { city: 'New York', country: 'United States' },
+  { city: 'Los Angeles', country: 'United States' },
+  { city: 'Chicago', country: 'United States' },
+  { city: 'Houston', country: 'United States' },
+  { city: 'Phoenix', country: 'United States' },
+  { city: 'Philadelphia', country: 'United States' },
+  { city: 'San Antonio', country: 'United States' },
+  { city: 'San Diego', country: 'United States' },
+  { city: 'Dallas', country: 'United States' },
+  { city: 'San Jose', country: 'United States' },
+  { city: 'London', country: 'United Kingdom' },
+  { city: 'Manchester', country: 'United Kingdom' },
+  { city: 'Birmingham', country: 'United Kingdom' },
+  { city: 'Leeds', country: 'United Kingdom' },
+  { city: 'Liverpool', country: 'United Kingdom' },
+  { city: 'Toronto', country: 'Canada' },
+  { city: 'Montreal', country: 'Canada' },
+  { city: 'Vancouver', country: 'Canada' },
+  { city: 'Calgary', country: 'Canada' },
+  { city: 'Edmonton', country: 'Canada' },
+  { city: 'Sydney', country: 'Australia' },
+  { city: 'Melbourne', country: 'Australia' },
+  { city: 'Brisbane', country: 'Australia' },
+  { city: 'Perth', country: 'Australia' },
+  { city: 'Adelaide', country: 'Australia' },
+  { city: 'Berlin', country: 'Germany' },
+  { city: 'Hamburg', country: 'Germany' },
+  { city: 'Munich', country: 'Germany' },
+  { city: 'Cologne', country: 'Germany' },
+  { city: 'Frankfurt', country: 'Germany' },
+  { city: 'Paris', country: 'France' },
+  { city: 'Marseille', country: 'France' },
+  { city: 'Lyon', country: 'France' },
+  { city: 'Toulouse', country: 'France' },
+  { city: 'Nice', country: 'France' },
+  { city: 'Madrid', country: 'Spain' },
+  { city: 'Barcelona', country: 'Spain' },
+  { city: 'Valencia', country: 'Spain' },
+  { city: 'Seville', country: 'Spain' },
+  { city: 'Zaragoza', country: 'Spain' },
+  { city: 'Rome', country: 'Italy' },
+  { city: 'Milan', country: 'Italy' },
+  { city: 'Naples', country: 'Italy' },
+  { city: 'Turin', country: 'Italy' },
+  { city: 'Palermo', country: 'Italy' },
+  { city: 'Tokyo', country: 'Japan' },
+  { city: 'Yokohama', country: 'Japan' },
+  { city: 'Osaka', country: 'Japan' },
+  { city: 'Nagoya', country: 'Japan' },
+  { city: 'Sapporo', country: 'Japan' },
+  { city: 'Seoul', country: 'South Korea' },
+  { city: 'Busan', country: 'South Korea' },
+  { city: 'Incheon', country: 'South Korea' },
+  { city: 'Daegu', country: 'South Korea' },
+  { city: 'Daejeon', country: 'South Korea' },
+  { city: 'Beijing', country: 'China' },
+  { city: 'Shanghai', country: 'China' },
+  { city: 'Guangzhou', country: 'China' },
+  { city: 'Shenzhen', country: 'China' },
+  { city: 'Chengdu', country: 'China' },
+  { city: 'Mumbai', country: 'India' },
+  { city: 'Delhi', country: 'India' },
+  { city: 'Bangalore', country: 'India' },
+  { city: 'Hyderabad', country: 'India' },
+  { city: 'Chennai', country: 'India' },
+  { city: 'São Paulo', country: 'Brazil' },
+  { city: 'Rio de Janeiro', country: 'Brazil' },
+  { city: 'Brasília', country: 'Brazil' },
+  { city: 'Salvador', country: 'Brazil' },
+  { city: 'Fortaleza', country: 'Brazil' },
+  { city: 'Mexico City', country: 'Mexico' },
+  { city: 'Guadalajara', country: 'Mexico' },
+  { city: 'Monterrey', country: 'Mexico' },
+  { city: 'Puebla', country: 'Mexico' },
+  { city: 'Tijuana', country: 'Mexico' },
+  { city: 'Moscow', country: 'Russia' },
+  { city: 'Saint Petersburg', country: 'Russia' },
+  { city: 'Novosibirsk', country: 'Russia' },
+  { city: 'Yekaterinburg', country: 'Russia' },
+  { city: 'Kazan', country: 'Russia' },
+  { city: 'Istanbul', country: 'Turkey' },
+  { city: 'Ankara', country: 'Turkey' },
+  { city: 'İzmir', country: 'Turkey' },
+  { city: 'Bursa', country: 'Turkey' },
+  { city: 'Antalya', country: 'Turkey' },
+  { city: 'Cairo', country: 'Egypt' },
+  { city: 'Alexandria', country: 'Egypt' },
+  { city: 'Giza', country: 'Egypt' },
+  { city: 'Shubra El Kheima', country: 'Egypt' },
+  { city: 'Port Said', country: 'Egypt' },
+  { city: 'Lagos', country: 'Nigeria' },
+  { city: 'Kano', country: 'Nigeria' },
+  { city: 'Ibadan', country: 'Nigeria' },
+  { city: 'Kaduna', country: 'Nigeria' },
+  { city: 'Port Harcourt', country: 'Nigeria' },
+  { city: 'Johannesburg', country: 'South Africa' },
+  { city: 'Cape Town', country: 'South Africa' },
+  { city: 'Durban', country: 'South Africa' },
+  { city: 'Pretoria', country: 'South Africa' },
+  { city: 'Port Elizabeth', country: 'South Africa' }
+];
+
 const schema = yup.object({
   fullName: yup.string().required('Full name is required').min(2, 'Full name must be at least 2 characters'),
-  bio: yup.string().required('Bio is required').min(10, 'Bio must be at least 10 characters'),
-  location: yup.string().required('Location is required'),
+  bio: yup.string().required('Bio is required').min(5, 'Bio must be at least 5 characters'),
+  location: yup.object().required('Please select a location').test('is-valid-location', 'Please select a valid location', value => {
+    return value && value.city && value.country;
+  }),
   skills: yup.array().min(1, 'Please add at least one skill'),
   interests: yup.array().min(1, 'Please add at least one interest')
 }).required();
@@ -47,7 +154,7 @@ const schema = yup.object({
 const ProfileSetup = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [skills, setSkills] = useState([]);
   const [interests, setInterests] = useState([]);
   const [newSkill, setNewSkill] = useState('');
@@ -57,9 +164,13 @@ const ProfileSetup = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
-  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm({
+  const { register, handleSubmit, formState: { errors }, watch, setValue, setError } = useForm({
     resolver: yupResolver(schema)
   });
+
+  // Debug form errors
+  console.log('Form errors:', errors);
+  console.log('Current form values:', watch());
 
   const watchedUserType = watch('userType');
 
@@ -112,6 +223,42 @@ const ProfileSetup = () => {
   };
 
   const handleNext = () => {
+    // Validate current step before proceeding
+    if (activeStep === 0) {
+      // Validate basic information step
+      const currentValues = watch();
+      const stepErrors = {};
+      
+      if (!currentValues.fullName || currentValues.fullName.length < 2) {
+        stepErrors.fullName = 'Full name must be at least 2 characters';
+      }
+      if (!currentValues.bio || currentValues.bio.length < 5) {
+        stepErrors.bio = 'Bio must be at least 5 characters';
+      }
+      if (!currentValues.location || !currentValues.location.city || !currentValues.location.country) {
+        stepErrors.location = 'Please select a valid location';
+      }
+      
+      if (Object.keys(stepErrors).length > 0) {
+        // Set errors and don't proceed
+        Object.keys(stepErrors).forEach(field => {
+          setError(field, { message: stepErrors[field] });
+        });
+        return;
+      }
+    } else if (activeStep === 1) {
+      // Validate skills and interests step
+      if (skills.length === 0) {
+        setError('skills', { message: 'Please add at least one skill' });
+        return;
+      }
+      if (interests.length === 0) {
+        setError('interests', { message: 'Please add at least one interest' });
+        return;
+      }
+    }
+    
+    // If validation passes, proceed to next step
     setActiveStep((prevActiveStep) => prevActiveStep + 1);
   };
 
@@ -121,16 +268,23 @@ const ProfileSetup = () => {
 
   const onSubmit = async (data) => {
     try {
-      setError('');
+      console.log('Form submitted with data:', data);
+      console.log('Skills:', skills);
+      console.log('Interests:', interests);
+      
+      setErrorMessage('');
       setLoading(true);
 
       const token = await currentUser.getIdToken();
       
       const profileData = {
         ...data,
+        location: data.location ? `${data.location.city}, ${data.location.country}` : null,
         skills: skills,
         interests: interests
       };
+
+      console.log('Sending profile data:', profileData);
 
       // Update user profile in backend
       const response = await axios.put('http://localhost:8080/api/profile', profileData, {
@@ -144,7 +298,8 @@ const ProfileSetup = () => {
       navigate('/profile');
     } catch (error) {
       console.error('Profile update error:', error);
-      setError('Failed to update profile. Please try again.');
+      console.error('Error response:', error.response?.data);
+      setErrorMessage('Failed to update profile. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -185,24 +340,64 @@ const ProfileSetup = () => {
               placeholder="Tell us about your background, interests, and what you're passionate about..."
               {...register('bio')}
               error={!!errors.bio}
-              helperText={errors.bio?.message}
+              helperText={
+                errors.bio?.message ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>{errors.bio.message}</span>
+                    <span style={{ fontSize: '0.75rem', color: 'red' }}>
+                      {watch('bio')?.length || 0}/500
+                    </span>
+                  </Box>
+                ) : (
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span></span>
+                    <span style={{ fontSize: '0.75rem', color: 'gray' }}>
+                      {watch('bio')?.length || 0}/500
+                    </span>
+                  </Box>
+                )
+              }
+              inputProps={{
+                maxLength: 500
+              }}
               sx={{ mb: 3 }}
             />
 
-            <TextField
-              label="Location"
-              fullWidth
-              margin="normal"
-              required
-              placeholder="City, Country"
-              {...register('location')}
-              error={!!errors.location}
-              helperText={errors.location?.message}
-              InputProps={{
-                startAdornment: (
-                  <LocationOn color="action" />
-                ),
+            <Autocomplete
+              options={locations}
+              getOptionLabel={(option) => `${option.city}, ${option.country}`}
+              value={watch('location') || null}
+              onChange={(event, newValue) => {
+                setValue('location', newValue);
               }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Location"
+                  required
+                  placeholder="Select your city and country"
+                  error={!!errors.location}
+                  helperText={errors.location?.message}
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <LocationOn color="action" />
+                    ),
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <Box component="li" {...props}>
+                  <Box>
+                    <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                      {option.city}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {option.country}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
               sx={{ mb: 3 }}
             />
           </Box>
@@ -229,6 +424,9 @@ const ProfileSetup = () => {
                   placeholder="e.g., JavaScript, Cooking, Photography"
                   fullWidth
                   onKeyPress={(e) => e.key === 'Enter' && handleAddSkill()}
+                  inputProps={{
+                    maxLength: 50
+                  }}
                 />
                 <Button
                   variant="contained"
@@ -252,6 +450,11 @@ const ProfileSetup = () => {
                   />
                 ))}
               </Box>
+              {errors.skills && (
+                <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                  {errors.skills.message}
+                </Typography>
+              )}
             </Box>
 
             {/* Interests Section */}
@@ -268,6 +471,9 @@ const ProfileSetup = () => {
                   placeholder="e.g., Reading, Travel, Music"
                   fullWidth
                   onKeyPress={(e) => e.key === 'Enter' && handleAddInterest()}
+                  inputProps={{
+                    maxLength: 50
+                  }}
                 />
                 <Button
                   variant="contained"
@@ -291,6 +497,11 @@ const ProfileSetup = () => {
                   />
                 ))}
               </Box>
+              {errors.interests && (
+                <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                  {errors.interests.message}
+                </Typography>
+              )}
             </Box>
           </Box>
         );
@@ -319,7 +530,7 @@ const ProfileSetup = () => {
               </Typography>
               
               <Typography variant="body1" sx={{ mb: 2 }}>
-                <strong>Location:</strong> {watch('location') || 'No location provided'}
+                <strong>Location:</strong> {watch('location') ? `${watch('location').city}, ${watch('location').country}` : 'No location provided'}
               </Typography>
               
               <Typography variant="body1" sx={{ mb: 1 }}>
@@ -394,9 +605,9 @@ const ProfileSetup = () => {
               </Typography>
             </Box>
 
-            {error && (
+            {errorMessage && (
               <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
-                {error}
+                {errorMessage}
               </Alert>
             )}
 
@@ -428,7 +639,7 @@ const ProfileSetup = () => {
               ))}
             </Stepper>
 
-            <Box component="form" onSubmit={handleSubmit(onSubmit)}>
+            <Box component="form">
               <Grow in={true} timeout={500}>
                 <Box>
                   {renderStepContent(activeStep)}
@@ -457,7 +668,7 @@ const ProfileSetup = () => {
                 <Box sx={{ display: 'flex', gap: 2 }}>
                   {activeStep === steps.length - 1 ? (
                     <Button
-                      type="submit"
+                      onClick={handleSubmit(onSubmit)}
                       variant="contained"
                       disabled={loading}
                       endIcon={loading ? <CircularProgress size={20} /> : <CheckCircle />}

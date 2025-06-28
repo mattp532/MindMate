@@ -27,7 +27,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Snackbar
+  Snackbar,
+  CircularProgress
 } from '@mui/material';
 import { 
   Person, 
@@ -46,6 +47,7 @@ import {
 } from '@mui/icons-material';
 import VideoAssessment from '../components/VideoAssessment';
 import { useAuth } from '../contexts/AuthContext';
+import axios from 'axios';
 
 const Profile = () => {
   const { currentUser } = useAuth();
@@ -54,10 +56,13 @@ const Profile = () => {
 
   // Profile state
   const [profile, setProfile] = React.useState({
-    name: 'John Doe',
-    title: 'Software Developer & Teacher',
-    location: 'San Francisco, CA'
+    name: 'Loading...',
+    title: 'Loading...',
+    location: 'Loading...',
+    bio: 'Loading...'
   });
+  const [loading, setLoading] = React.useState(true);
+  const [profileError, setProfileError] = React.useState('');
   const [editOpen, setEditOpen] = React.useState(false);
   const [editForm, setEditForm] = React.useState(profile);
   const [editError, setEditError] = React.useState('');
@@ -65,12 +70,80 @@ const Profile = () => {
 
   // Skills/assessment state (existing)
   const [skills, setSkills] = React.useState([]); // { name, verified, score }
+  const [interests, setInterests] = React.useState([]); // { name }
   const [newSkill, setNewSkill] = React.useState("");
   const [showVideoAssessment, setShowVideoAssessment] = React.useState(false);
   const [currentSkill, setCurrentSkill] = React.useState(null);
-  const [step, setStep] = React.useState(0); // 0: Add Skill, 1: Verify Skill, 2: Done
   const [showCongrats, setShowCongrats] = React.useState(false);
   const [lastVerifiedSkill, setLastVerifiedSkill] = React.useState(null);
+  const [savingSkill, setSavingSkill] = React.useState(false);
+  const [skillSaveMessage, setSkillSaveMessage] = React.useState('');
+
+  // Fetch user profile data
+  React.useEffect(() => {
+    const fetchProfile = async () => {
+      if (!currentUser) return;
+      
+      try {
+        setLoading(true);
+        const token = await currentUser.getIdToken();
+        const response = await axios.get('http://localhost:8080/api/profile', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        const userData = response.data;
+        setProfile({
+          name: userData.name || 'No name provided',
+          title: '',
+          location: userData.city && userData.country 
+            ? `${userData.city}, ${userData.country}`
+            : userData.city || userData.country || 'No location provided',
+          bio: userData.bio || 'No bio provided'
+        });
+        setEditForm({
+          name: userData.name || 'No name provided',
+          title: '',
+          location: userData.city && userData.country 
+            ? `${userData.city}, ${userData.country}`
+            : userData.city || userData.country || 'No location provided',
+          bio: userData.bio || 'No bio provided'
+        });
+        
+        // Set skills from backend as unverified skills
+        if (userData.skills && userData.skills.length > 0) {
+          const backendSkills = userData.skills.map(skill => ({
+            name: skill.name,
+            verified: skill.verified || false,
+            score: skill.verification_score || null
+          }));
+          setSkills(backendSkills);
+        }
+        
+        // Set interests from backend
+        if (userData.interests && userData.interests.length > 0) {
+          const backendInterests = userData.interests.map(interestName => ({
+            name: interestName
+          }));
+          setInterests(backendInterests);
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+        setProfileError('Failed to load profile data');
+        setProfile({
+          name: 'Error loading profile',
+          title: 'Error loading profile',
+          location: 'Error loading profile',
+          bio: 'Error loading profile'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [currentUser]);
 
   // Compute display name and avatar
   const displayName = currentUser?.displayName || profile.name;
@@ -80,59 +153,114 @@ const Profile = () => {
   React.useEffect(() => {
     setProfile({
       name: 'John Doe',
-      title: 'Software Developer & Teacher',
-      location: 'San Francisco, CA'
+      title: '',
+      location: 'San Francisco, CA',
+      bio: 'Loading...'
     });
     setEditOpen(false);
     setEditForm({
       name: 'John Doe',
-      title: 'Software Developer & Teacher',
-      location: 'San Francisco, CA'
+      title: '',
+      location: 'San Francisco, CA',
+      bio: 'Loading...'
     });
     setEditError('');
     setShowEditSuccess(false);
     setSkills([]);
+    setInterests([]);
     setNewSkill("");
     setShowVideoAssessment(false);
     setCurrentSkill(null);
-    setStep(0);
     setShowCongrats(false);
     setLastVerifiedSkill(null);
+    setSavingSkill(false);
+    setSkillSaveMessage('');
   }, [userId]);
 
   // Add a new skill and immediately start verification
-  const handleAddSkill = () => {
+  const handleAddSkill = async () => {
     const skillName = newSkill.trim();
     if (skillName && !skills.some(s => s.name.toLowerCase() === skillName.toLowerCase())) {
-      setSkills([...skills, { name: skillName, verified: false, score: null }]);
-      setCurrentSkill(skillName);
-      setShowVideoAssessment(true);
+      setSavingSkill(true);
+      setSkillSaveMessage('');
+      
+      const newSkillObj = { name: skillName, verified: false, score: null };
+      setSkills([...skills, newSkillObj]);
       setNewSkill("");
-      setStep(1);
+      
+      // Save the new skill to the database immediately
+      try {
+        const token = await currentUser.getIdToken();
+        await axios.put('http://localhost:8080/api/profile', {
+          fullName: profile.name,
+          bio: profile.bio,
+          location: profile.location.split(',')[0]?.trim() || '', // Extract city from location
+          skills: [...skills.map(skill => skill.name), skillName], // Include all existing skills plus the new one
+          interests: interests.map(interest => interest.name),
+        }, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        console.log('New skill saved to database:', skillName);
+        setSkillSaveMessage('Skill added successfully!');
+        setTimeout(() => setSkillSaveMessage(''), 3000); // Clear message after 3 seconds
+      } catch (error) {
+        console.error('Error saving new skill to database:', error);
+        setSkillSaveMessage('Failed to save skill. Please try again.');
+        setTimeout(() => setSkillSaveMessage(''), 3000); // Clear message after 3 seconds
+      } finally {
+        setSavingSkill(false);
+      }
+    } else if (skillName && skills.some(s => s.name.toLowerCase() === skillName.toLowerCase())) {
+      // If skill already exists, just clear the input
+      setNewSkill("");
+      setSkillSaveMessage('Skill already exists!');
+      setTimeout(() => setSkillSaveMessage(''), 3000);
     }
   };
 
   // After assessment, update the skill as verified (if passed) and store the score
-  const handleAssessmentComplete = (result) => {
-    setSkills(skills => skills.map(skill =>
-      skill.name === currentSkill
-        ? { ...skill, verified: result.score >= 80, score: result.score }
-        : skill
-    ));
-    setShowVideoAssessment(false);
-    setStep(2);
-    setLastVerifiedSkill({ name: currentSkill, score: result.score });
-    setShowCongrats(true);
-    setCurrentSkill(null);
-  };
-
-  // Reset onboarding for another skill
-  const handleAddAnotherSkill = () => {
-    setStep(0);
-    setCurrentSkill(null);
-    setNewSkill("");
-    setShowCongrats(false);
-    setLastVerifiedSkill(null);
+  const handleAssessmentComplete = async (result) => {
+    try {
+      const token = await currentUser.getIdToken();
+      const verified = result.score >= 80;
+      
+      // Update skill verification in backend
+      await axios.put('http://localhost:8080/api/profile/skill-verification', {
+        skillName: currentSkill,
+        verified: verified,
+        score: result.score
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      // Update local state
+      setSkills(skills => skills.map(skill =>
+        skill.name === currentSkill
+          ? { ...skill, verified: verified, score: result.score }
+          : skill
+      ));
+      
+      setShowVideoAssessment(false);
+      setShowCongrats(true);
+      setCurrentSkill(null);
+      setLastVerifiedSkill({ name: currentSkill, score: result.score });
+    } catch (error) {
+      console.error('Error updating skill verification:', error);
+      // Still update local state even if backend call fails
+      setSkills(skills => skills.map(skill =>
+        skill.name === currentSkill
+          ? { ...skill, verified: result.score >= 80, score: result.score }
+          : skill
+      ));
+      setShowVideoAssessment(false);
+      setShowCongrats(true);
+      setCurrentSkill(null);
+      setLastVerifiedSkill({ name: currentSkill, score: result.score });
+    }
   };
 
   // Edit Profile Handlers
@@ -148,19 +276,58 @@ const Profile = () => {
   const handleEditChange = (e) => {
     setEditForm({ ...editForm, [e.target.name]: e.target.value });
   };
-  const handleEditSave = () => {
+  const handleEditSave = async () => {
     // Validation
-    if (!editForm.name.trim() || !editForm.title.trim() || !editForm.location.trim()) {
-      setEditError('All fields are required.');
+    if (!editForm.name.trim() || !editForm.location.trim()) {
+      setEditError('Name and location are required.');
       return;
     }
-    if (editForm.name.length > 50 || editForm.title.length > 60 || editForm.location.length > 60) {
+    if (editForm.name.length > 50 || editForm.location.length > 60) {
       setEditError('Please keep fields to a reasonable length.');
       return;
     }
-    setProfile(editForm);
-    setEditOpen(false);
-    setShowEditSuccess(true);
+    if (editForm.bio && editForm.bio.length > 500) {
+      setEditError('Bio should be less than 500 characters.');
+      return;
+    }
+
+    try {
+      const token = await currentUser.getIdToken();
+      
+      // Parse location to extract city and country
+      const locationParts = editForm.location.split(',').map(part => part.trim());
+      const city = locationParts[0] || '';
+      const country = locationParts[1] || '';
+
+      const response = await axios.put('http://localhost:8080/api/profile', {
+        fullName: editForm.name,
+        bio: editForm.bio,
+        location: city, // Backend expects just the city
+        skills: skills.map(skill => skill.name), // Include all skills (verified and unverified)
+        interests: interests.map(interest => interest.name), // Include current interests
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      // Update local state with the response data
+      const updatedData = response.data;
+      setProfile({
+        name: updatedData.name || editForm.name,
+        title: '',
+        location: updatedData.city && updatedData.country 
+          ? `${updatedData.city}, ${updatedData.country}`
+          : updatedData.city || updatedData.country || editForm.location,
+        bio: updatedData.bio || editForm.bio
+      });
+
+      setEditOpen(false);
+      setShowEditSuccess(true);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setEditError('Failed to update profile. Please try again.');
+    }
   };
 
   return (
@@ -185,20 +352,19 @@ const Profile = () => {
           Profile
         </Typography>
 
-        {/* Onboarding Stepper */}
-        <Box sx={{ maxWidth: 600, mx: 'auto', mb: 4 }}>
-          <Stepper activeStep={step} alternativeLabel>
-            <Step key="add-skill">
-              <StepLabel>Add Skill</StepLabel>
-            </Step>
-            <Step key="verify-skill">
-              <StepLabel>Verify Skill</StepLabel>
-            </Step>
-            <Step key="done">
-              <StepLabel>Done</StepLabel>
-            </Step>
-          </Stepper>
-        </Box>
+        {/* Error Alert */}
+        {profileError && (
+          <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+            {profileError}
+          </Alert>
+        )}
+
+        {/* Loading State */}
+        {loading && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+            <LinearProgress sx={{ width: '100%', maxWidth: 400 }} />
+          </Box>
+        )}
 
         {/* Top Row: Flexbox for Profile, Skills, Teaching Statistics */}
         <Box sx={{ display: 'flex', gap: 4, mb: 4, flexWrap: 'wrap', alignItems: 'stretch', justifyContent: 'center' }}>
@@ -212,40 +378,73 @@ const Profile = () => {
                 {!avatarUrl && displayName.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase()}
               </Avatar>
               <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', fontSize: { xs: '1.1rem', md: '1.5rem' }, mb: 1 }}>{displayName}</Typography>
-              <Typography variant="body1" color="text.secondary" gutterBottom sx={{ fontSize: { xs: '0.85rem', md: '1rem' }, mb: 2 }}>{profile.title}</Typography>
+              {profile.title && (
+                <Typography variant="body1" color="text.secondary" gutterBottom sx={{ fontSize: { xs: '0.85rem', md: '1rem' }, mb: 2 }}>{profile.title}</Typography>
+              )}
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 2 }}>
                 <Star sx={{ color: 'warning.main', fontSize: 18 }} />
                 <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: { xs: '0.9rem', md: '1rem' } }}>4.8 (127 reviews)</Typography>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 2 }}>
                 <LocationOn sx={{ fontSize: 16, color: 'text.secondary' }} />
-                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: { xs: '0.85rem', md: '1rem' } }}>{profile.location}</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: { xs: '0.85rem', md: '1rem' } }}>
+                  {profile.location}
+                </Typography>
               </Box>
+              {profile.bio && profile.bio !== 'No bio provided' && (
+                <Box sx={{ mb: 2, textAlign: 'left' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ 
+                    fontSize: { xs: '0.8rem', md: '0.9rem' }, 
+                    lineHeight: 1.4,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}>
+                    {profile.bio}
+                  </Typography>
+                </Box>
+              )}
               <Button variant="outlined" startIcon={<Edit />} fullWidth sx={{ borderRadius: 2, py: 1.2, fontWeight: 'bold', textTransform: 'none', mt: 'auto', fontSize: { xs: '0.95rem', md: '1rem' } }} onClick={handleEditOpen}>Edit Profile</Button>
             </Paper>
-                  </Box>
+          </Box>
 
           {/* Skills Wizard */}
           <Box sx={{ minWidth: 350, maxWidth: 500, flex: '0 0 420px', display: 'flex', flexDirection: 'column' }}>
             <Paper elevation={6} sx={{ p: { xs: 3, md: 5 }, borderRadius: 4, boxShadow: '0 8px 32px rgba(102,126,234,0.10)', background: 'rgba(255, 255, 255, 0.98)', backdropFilter: 'blur(12px)', minHeight: 420, display: 'flex', flexDirection: 'column', justifyContent: 'stretch' }}>
               <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', mb: 2, color: 'primary.main', textAlign: 'center' }}>Skill Verification</Typography>
-              {step === 0 && (
-                <>
-                  <Alert severity="info" sx={{ mb: 3, borderRadius: 2, fontSize: '1.1rem' }}>
-                    Add a skill you want to teach. You'll be asked to verify it with a short video!
-                  </Alert>
-                  <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' }, mb: 2, justifyContent: 'center' }}>
-                    <TextField label="Skill Name" value={newSkill} onChange={(e) => setNewSkill(e.target.value)} placeholder="e.g., Python, Design, Marketing" fullWidth sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: { xs: '1.1rem', md: '1.2rem' }, boxShadow: '0 2px 8px rgba(102,126,234,0.08)' } }} />
-                    <Button variant="contained" startIcon={<Add />} onClick={handleAddSkill} sx={{ minWidth: { xs: '100%', sm: 120 }, borderRadius: 2, py: 1.5, fontWeight: 'bold', textTransform: 'none', fontSize: { xs: '1.1rem', md: '1.2rem' }, boxShadow: '0 2px 8px rgba(102,126,234,0.12)' }}>Add</Button>
-                  </Box>
-                </>
-              )}
-              {step === 2 && (
-                <Alert severity="success" sx={{ mb: 3, borderRadius: 2, fontSize: '1.1rem', textAlign: 'center' }}>
-                  <CheckCircle sx={{ color: 'success.main', mr: 1, verticalAlign: 'middle' }} />
-                  Congratulations! Your skill has been verified. You can add more skills below.
+              
+              <Alert severity="info" sx={{ mb: 3, borderRadius: 2, fontSize: '1.1rem' }}>
+                {skills.length > 0 
+                  ? "Add more skills you want to teach, or click on unverified skills below to verify them."
+                  : "Add skills you want to teach. Click on a skill to verify it with a video assessment!"
+                }
+              </Alert>
+              
+              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' }, mb: 2, justifyContent: 'center' }}>
+                <TextField label="Skill Name" value={newSkill} onChange={(e) => setNewSkill(e.target.value)} placeholder="e.g., Python, Design, Marketing" fullWidth sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: { xs: '1.1rem', md: '1.2rem' }, boxShadow: '0 2px 8px rgba(102,126,234,0.08)' } }} />
+                <Button 
+                  variant="contained" 
+                  startIcon={savingSkill ? <CircularProgress size={20} /> : <Add />} 
+                  onClick={handleAddSkill}
+                  disabled={savingSkill || !newSkill.trim()}
+                  sx={{ minWidth: { xs: '100%', sm: 120 }, borderRadius: 2, py: 1.5, fontWeight: 'bold', textTransform: 'none', fontSize: { xs: '1.1rem', md: '1.2rem' }, boxShadow: '0 2px 8px rgba(102,126,234,0.12)' }}
+                >
+                  {savingSkill ? 'Saving...' : 'Add'}
+                </Button>
+              </Box>
+              
+              {/* Skill save message */}
+              {skillSaveMessage && (
+                <Alert 
+                  severity={skillSaveMessage.includes('successfully') ? 'success' : skillSaveMessage.includes('already exists') ? 'info' : 'error'} 
+                  sx={{ mb: 2, borderRadius: 2 }}
+                >
+                  {skillSaveMessage}
                 </Alert>
               )}
+              
               <Divider sx={{ my: 2 }} />
               <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 1, fontSize: { xs: '1rem', md: '1.15rem' } }}>Your Skills</Typography>
               <Box sx={{ mb: 3, flex: 1, overflow: 'auto', minHeight: 60 }}>
@@ -263,7 +462,6 @@ const Profile = () => {
                               if (!skill.verified) {
                                 setCurrentSkill(skill.name);
                                 setShowVideoAssessment(true);
-                                setStep(1);
                               }
                             }}>
                               <Chip
@@ -274,7 +472,18 @@ const Profile = () => {
                                 }
                                 color={skill.verified ? "success" : skill.score ? "warning" : "default"}
                                 variant={skill.verified ? "filled" : "outlined"}
-                                sx={{ fontSize: { xs: '1rem', md: '1.1rem' }, height: { xs: 32, md: 40 }, fontWeight: 'bold', px: 2, boxShadow: skill.verified ? '0 2px 8px rgba(76,175,80,0.10)' : undefined, border: skill.verified ? '2px solid #43a047' : skill.score ? '2px solid #ffa726' : undefined }}
+                                sx={{ 
+                                  fontSize: { xs: '1rem', md: '1.1rem' }, 
+                                  height: { xs: 32, md: 40 }, 
+                                  fontWeight: 'bold', 
+                                  px: 2, 
+                                  bgcolor: skill.verified ? '#e8f5e8' : '#ffeaea', // Light green for verified, light red for unverified
+                                  color: skill.verified ? '#2e7d32' : '#d32f2f', // Dark green text for verified, dark red for unverified
+                                  border: skill.verified ? '2px solid #4caf50' : '2px solid #f44336', // Green border for verified, red for unverified
+                                  '&:hover': {
+                                    bgcolor: skill.verified ? '#d4edda' : '#ffcdd2', // Darker on hover
+                                  }
+                                }}
                               />
                             </span>
                           </Tooltip>
@@ -283,19 +492,54 @@ const Profile = () => {
                     </Grid>
                     {skills.some(skill => !skill.verified) && (
                       <Alert severity="warning" sx={{ mt: 3, borderRadius: 2, fontWeight: 'bold', textAlign: 'center' }}>
-                        You have unverified skills. Click a skill to resubmit your video and get verified.
+                        {skills.every(skill => !skill.verified && skill.score === null) 
+                          ? "Click on any unverified skill (red) to start the verification process."
+                          : "You have unverified skills. Click on a red skill to verify it with a video assessment."
+                        }
                       </Alert>
                     )}
                   </>
                 )}
               </Box>
-              {step === 2 && (
-                <Button variant="outlined" onClick={handleAddAnotherSkill} sx={{ borderRadius: 2, py: 1.2, fontWeight: 'bold', textTransform: 'none', fontSize: { xs: '1rem', md: '1.1rem' }, mt: 2 }}>
-                  Add Another Skill
-                </Button>
-              )}
             </Paper>
-                  </Box>
+          </Box>
+
+          {/* Interests Section */}
+          <Box sx={{ minWidth: 320, maxWidth: 400, flex: '0 0 320px', display: 'flex', flexDirection: 'column' }}>
+            <Paper elevation={3} sx={{ p: { xs: 2, md: 4 }, borderRadius: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.08)', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', height: 400, display: 'flex', flexDirection: 'column', justifyContent: 'stretch' }}>
+              <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', fontSize: { xs: '1.0rem', md: '1.39rem' }, mb: 2 }}>Interests</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: '0.9rem', md: '1rem' } }}>
+                Skills you want to learn
+              </Typography>
+              <Box sx={{ flex: 1, overflow: 'auto' }}>
+                {interests.length === 0 ? (
+                  <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+                    No interests added yet.
+                  </Alert>
+                ) : (
+                  <Grid container spacing={1}>
+                    {interests.map((interest, index) => (
+                      <Grid item key={index}>
+                        <Chip
+                          label={interest.name}
+                          color="primary"
+                          variant="outlined"
+                          sx={{ 
+                            fontSize: { xs: '0.9rem', md: '1rem' }, 
+                            height: { xs: 28, md: 32 }, 
+                            fontWeight: 'bold', 
+                            px: 2,
+                            border: '2px solid',
+                            borderColor: 'primary.main'
+                          }}
+                        />
+                      </Grid>
+                    ))}
+                  </Grid>
+                )}
+              </Box>
+            </Paper>
+          </Box>
 
           {/* Teaching Statistics - fills remaining space */}
           <Box sx={{ flex: 1, minWidth: 260, display: 'flex', flexDirection: 'column' }}>
@@ -372,16 +616,6 @@ const Profile = () => {
             />
             <TextField
               margin="normal"
-              label="Title"
-              name="title"
-              value={editForm.title}
-              onChange={handleEditChange}
-              fullWidth
-              required
-              inputProps={{ maxLength: 60 }}
-            />
-            <TextField
-              margin="normal"
               label="Location"
               name="location"
               value={editForm.location}
@@ -389,6 +623,17 @@ const Profile = () => {
               fullWidth
               required
               inputProps={{ maxLength: 60 }}
+            />
+            <TextField
+              margin="normal"
+              label="Bio"
+              name="bio"
+              value={editForm.bio}
+              onChange={handleEditChange}
+              fullWidth
+              multiline
+              rows={4}
+              inputProps={{ maxLength: 500 }}
             />
             {editError && <Alert severity="error" sx={{ mt: 2 }}>{editError}</Alert>}
           </DialogContent>
