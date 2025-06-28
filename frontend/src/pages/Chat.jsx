@@ -18,7 +18,20 @@ import {
   Fade,
   Grow,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  Menu,
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Snackbar,
+  Alert,
+  SpeedDial,
+  SpeedDialAction,
+  SpeedDialIcon,
+  Tooltip,
+  Fab
 } from '@mui/material';
 import { 
   Send, 
@@ -30,7 +43,26 @@ import {
   Search,
   ArrowBack,
   OnlinePrediction,
-  Schedule
+  Schedule,
+  Mic,
+  Stop,
+  ThumbUp,
+  ThumbDown,
+  Favorite,
+  Share,
+  Download,
+  Delete,
+  Edit,
+  Reply,
+  Schedule as ScheduleIcon,
+  LocationOn,
+  Image,
+  Description,
+  Videocam,
+  AudioFile,
+  Close,
+  CheckCircle,
+  Warning
 } from '@mui/icons-material';
 import { useSearchParams } from 'react-router-dom';
 import { useRef, useState } from 'react';
@@ -42,6 +74,17 @@ const Chat = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [searchParams] = useSearchParams();
   const userId = searchParams.get('userId');
+
+  // New state for enhanced features
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [showQuickActions, setShowQuickActions] = useState(false);
+  const [callDialogOpen, setCallDialogOpen] = useState(false);
+  const [callType, setCallType] = useState('');
+  const [messageReactions, setMessageReactions] = useState({});
+  const [replyToMessage, setReplyToMessage] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [moreMenuAnchor, setMoreMenuAnchor] = useState(null);
 
   // Mock data for demonstration
   const chats = [
@@ -98,6 +141,19 @@ const Chat = () => {
   const messagesEndRef = useRef();
   const [chatFadeKey, setChatFadeKey] = useState(0);
 
+  // Quick action buttons
+  const quickActions = [
+    { label: "👍 Great!", icon: <ThumbUp />, action: () => sendQuickMessage("👍 Great!") },
+    { label: "👋 Hi there!", icon: <EmojiEmotions />, action: () => sendQuickMessage("👋 Hi there!") },
+    { label: "📅 Schedule", icon: <ScheduleIcon />, action: () => sendQuickMessage("Let's schedule a session!") },
+    { label: "📍 Location", icon: <LocationOn />, action: () => sendQuickMessage("📍 I'm available for in-person sessions") },
+    { label: "✅ Confirmed", icon: <CheckCircle />, action: () => sendQuickMessage("✅ Confirmed!") },
+    { label: "❓ Question", icon: <Search />, action: () => sendQuickMessage("❓ Do you have any questions?") }
+  ];
+
+  // Emoji reactions
+  const emojiReactions = ['👍', '❤️', '😊', '🎉', '👏', '🔥', '💯', '🤔'];
+
   React.useEffect(() => {
     if (userId) {
       const chatIndex = chats.findIndex(chat => chat.id === Number(userId));
@@ -127,7 +183,8 @@ const Chat = () => {
         content: message,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         isOwn: true,
-        attachment: attachment ? { name: attachment.name, url: URL.createObjectURL(attachment), type: attachment.type } : null
+        attachment: attachment ? { name: attachment.name, url: URL.createObjectURL(attachment), type: attachment.type } : null,
+        replyTo: replyToMessage
       };
       setMessagesByChat(prev => ({
         ...prev,
@@ -135,8 +192,26 @@ const Chat = () => {
       }));
       setMessage("");
       setAttachment(null);
+      setReplyToMessage(null);
       if (fileInputRef.current) fileInputRef.current.value = null;
     }
+  };
+
+  const sendQuickMessage = (content) => {
+    const chatId = chats[selectedChat].id;
+    const newMsg = {
+      id: (messagesByChat[chatId]?.length || 0) + 1,
+      sender: "You",
+      avatar: "ME",
+      content: content,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isOwn: true
+    };
+    setMessagesByChat(prev => ({
+      ...prev,
+      [chatId]: [...(prev[chatId] || []), newMsg]
+    }));
+    setShowQuickActions(false);
   };
 
   const handleKeyPress = (e) => {
@@ -152,7 +227,56 @@ const Chat = () => {
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    if (file) setAttachment(file);
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        setSnackbar({ open: true, message: 'File size too large. Please select a file under 10MB.', severity: 'warning' });
+        return;
+      }
+      setAttachment(file);
+      setSnackbar({ open: true, message: `File "${file.name}" attached successfully!`, severity: 'success' });
+    }
+  };
+
+  const handleCall = (type) => {
+    setCallType(type);
+    setCallDialogOpen(true);
+  };
+
+  const handleCallConfirm = () => {
+    setCallDialogOpen(false);
+    setSnackbar({ open: true, message: `Initiating ${callType} call with ${chats[selectedChat]?.name}...`, severity: 'info' });
+    // Here you would integrate with actual calling service
+  };
+
+  const handleVoiceRecording = () => {
+    if (!isRecording) {
+      setIsRecording(true);
+      setSnackbar({ open: true, message: 'Recording started... Click stop when done.', severity: 'info' });
+    } else {
+      setIsRecording(false);
+      setSnackbar({ open: true, message: 'Voice message recorded and sent!', severity: 'success' });
+      // Here you would handle the actual voice recording
+    }
+  };
+
+  const handleReaction = (messageId, reaction) => {
+    setMessageReactions(prev => ({
+      ...prev,
+      [messageId]: [...(prev[messageId] || []), reaction]
+    }));
+  };
+
+  const handleReply = (message) => {
+    setReplyToMessage(message);
+    setSnackbar({ open: true, message: `Replying to: "${message.content.substring(0, 30)}..."`, severity: 'info' });
+  };
+
+  const handleMoreMenuOpen = (event) => {
+    setMoreMenuAnchor(event.currentTarget);
+  };
+
+  const handleMoreMenuClose = () => {
+    setMoreMenuAnchor(null);
   };
 
   const chatId = chats[selectedChat]?.id;
@@ -401,36 +525,45 @@ const Chat = () => {
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', gap: 1 }}>
-                    <IconButton 
-                      sx={{ 
-                        bgcolor: 'rgba(102, 126, 234, 0.08)',
-                        '&:hover': {
-                          bgcolor: 'rgba(102, 126, 234, 0.12)'
-                        }
-                      }}
-                    >
-                      <Phone color="primary" />
-                    </IconButton>
-                    <IconButton 
-                      sx={{ 
-                        bgcolor: 'rgba(102, 126, 234, 0.08)',
-                        '&:hover': {
-                          bgcolor: 'rgba(102, 126, 234, 0.12)'
-                        }
-                      }}
-                    >
-                      <VideoCall color="primary" />
-                    </IconButton>
-                    <IconButton 
-                      sx={{ 
-                        bgcolor: 'rgba(102, 126, 234, 0.08)',
-                        '&:hover': {
-                          bgcolor: 'rgba(102, 126, 234, 0.12)'
-                        }
-                      }}
-                    >
-                      <MoreVert color="primary" />
-                    </IconButton>
+                    <Tooltip title="Voice Call">
+                      <IconButton 
+                        onClick={() => handleCall('voice')}
+                        sx={{ 
+                          bgcolor: 'rgba(102, 126, 234, 0.08)',
+                          '&:hover': {
+                            bgcolor: 'rgba(102, 126, 234, 0.12)'
+                          }
+                        }}
+                      >
+                        <Phone color="primary" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Video Call">
+                      <IconButton 
+                        onClick={() => handleCall('video')}
+                        sx={{ 
+                          bgcolor: 'rgba(102, 126, 234, 0.08)',
+                          '&:hover': {
+                            bgcolor: 'rgba(102, 126, 234, 0.12)'
+                          }
+                        }}
+                      >
+                        <VideoCall color="primary" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="More Options">
+                      <IconButton 
+                        onClick={handleMoreMenuOpen}
+                        sx={{ 
+                          bgcolor: 'rgba(102, 126, 234, 0.08)',
+                          '&:hover': {
+                            bgcolor: 'rgba(102, 126, 234, 0.12)'
+                          }
+                        }}
+                      >
+                        <MoreVert color="primary" />
+                      </IconButton>
+                    </Tooltip>
                   </Box>
                 </Box>
               </Box>
@@ -471,6 +604,21 @@ const Chat = () => {
                               </Avatar>
                             )}
                             <Box>
+                              {/* Reply to message */}
+                              {msg.replyTo && (
+                                <Box sx={{ 
+                                  mb: 1, 
+                                  p: 1, 
+                                  bgcolor: 'rgba(0,0,0,0.05)', 
+                                  borderRadius: 1,
+                                  borderLeft: '3px solid primary.main'
+                                }}>
+                                  <Typography variant="caption" color="text.secondary">
+                                    Replying to: {msg.replyTo.content.substring(0, 30)}...
+                                  </Typography>
+                                </Box>
+                              )}
+                              
                               <Paper 
                                 elevation={0}
                                 sx={{ 
@@ -486,7 +634,11 @@ const Chat = () => {
                                   border: msg.isOwn 
                                     ? 'none'
                                     : '1px solid rgba(255, 255, 255, 0.2)',
-                                  backdropFilter: 'blur(10px)'
+                                  backdropFilter: 'blur(10px)',
+                                  position: 'relative',
+                                  '&:hover .message-actions': {
+                                    opacity: 1
+                                  }
                                 }}
                               >
                                 <Typography 
@@ -499,16 +651,84 @@ const Chat = () => {
                                 >
                                   {msg.content}
                                 </Typography>
+                                
+                                {/* Message actions (appear on hover) */}
+                                <Box 
+                                  className="message-actions"
+                                  sx={{ 
+                                    position: 'absolute',
+                                    top: -10,
+                                    right: msg.isOwn ? -10 : 'auto',
+                                    left: msg.isOwn ? 'auto' : -10,
+                                    opacity: 0,
+                                    transition: 'opacity 0.2s ease-in-out',
+                                    display: 'flex',
+                                    gap: 0.5,
+                                    bgcolor: 'rgba(255, 255, 255, 0.9)',
+                                    borderRadius: 2,
+                                    p: 0.5,
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                                  }}
+                                >
+                                  <Tooltip title="Reply">
+                                    <IconButton size="small" onClick={() => handleReply(msg)}>
+                                      <Reply fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip title="React">
+                                    <IconButton size="small">
+                                      <EmojiEmotions fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                  {msg.attachment && (
+                                    <Tooltip title="Download">
+                                      <IconButton size="small">
+                                        <Download fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  )}
+                                </Box>
                               </Paper>
+                              
+                              {/* Message reactions */}
+                              {messageReactions[msg.id] && messageReactions[msg.id].length > 0 && (
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  gap: 0.5, 
+                                  mt: 1,
+                                  justifyContent: msg.isOwn ? 'flex-end' : 'flex-start'
+                                }}>
+                                  {messageReactions[msg.id].map((reaction, idx) => (
+                                    <Chip
+                                      key={idx}
+                                      label={reaction}
+                                      size="small"
+                                      sx={{ 
+                                        bgcolor: 'rgba(255, 255, 255, 0.8)',
+                                        fontSize: '0.75rem'
+                                      }}
+                                    />
+                                  ))}
+                                </Box>
+                              )}
+                              
                               {msg.attachment && (
                                 <Box sx={{ mt: 1 }}>
                                   {msg.attachment.type.startsWith('image/') ? (
                                     <img src={msg.attachment.url} alt={msg.attachment.name} style={{ maxWidth: 180, borderRadius: 8 }} />
                                   ) : (
-                                    <a href={msg.attachment.url} target="_blank" rel="noopener noreferrer">{msg.attachment.name}</a>
+                                    <Paper sx={{ p: 1, bgcolor: 'rgba(255, 255, 255, 0.8)', borderRadius: 2 }}>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        {msg.attachment.type.startsWith('video/') ? <Videocam /> : 
+                                         msg.attachment.type.startsWith('audio/') ? <AudioFile /> : 
+                                         msg.attachment.type.startsWith('image/') ? <Image /> : <Description />}
+                                        <Typography variant="body2">{msg.attachment.name}</Typography>
+                                      </Box>
+                                    </Paper>
                                   )}
                                 </Box>
                               )}
+                              
                               <Typography 
                                 variant="caption" 
                                 sx={{ 
@@ -526,9 +746,40 @@ const Chat = () => {
                         </Box>
                       </Grow>
                     ))}
+                    <div ref={messagesEndRef} />
                   </Box>
                 </Fade>
               </Box>
+
+              {/* Quick Actions */}
+              {showQuickActions && (
+                <Box sx={{ 
+                  p: 2, 
+                  borderTop: 1, 
+                  borderColor: 'divider',
+                  bgcolor: 'rgba(255, 255, 255, 0.9)'
+                }}>
+                  <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>Quick Actions</Typography>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {quickActions.map((action, index) => (
+                      <Button
+                        key={index}
+                        variant="outlined"
+                        size="small"
+                        startIcon={action.icon}
+                        onClick={action.action}
+                        sx={{ 
+                          borderRadius: 2,
+                          textTransform: 'none',
+                          fontWeight: 600
+                        }}
+                      >
+                        {action.label}
+                      </Button>
+                    ))}
+                  </Box>
+                </Box>
+              )}
 
               {/* Message Input */}
               <Box sx={{ 
@@ -538,18 +789,71 @@ const Chat = () => {
                 bgcolor: 'rgba(255, 255, 255, 0.9)',
                 backdropFilter: 'blur(10px)'
               }}>
+                {/* Reply indicator */}
+                {replyToMessage && (
+                  <Box sx={{ 
+                    mb: 2, 
+                    p: 1, 
+                    bgcolor: 'rgba(102, 126, 234, 0.1)', 
+                    borderRadius: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <Typography variant="body2" color="primary.main">
+                      Replying to: {replyToMessage.content.substring(0, 30)}...
+                    </Typography>
+                    <IconButton size="small" onClick={() => setReplyToMessage(null)}>
+                      <Close fontSize="small" />
+                    </IconButton>
+                  </Box>
+                )}
+                
                 <Box sx={{ 
                   display: 'flex', 
                   alignItems: 'flex-end',
                   gap: 1
                 }}>
-                  <IconButton 
-                    onClick={handleAttachClick}
-                    sx={{ bgcolor: 'rgba(102, 126, 234, 0.08)', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.12)' } }}
-                  >
-                    <AttachFile color="primary" />
-                    <input type="file" hidden ref={fileInputRef} onChange={handleFileChange} />
-                  </IconButton>
+                  <Tooltip title="Attach File">
+                    <IconButton 
+                      onClick={handleAttachClick}
+                      sx={{ bgcolor: 'rgba(102, 126, 234, 0.08)', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.12)' } }}
+                    >
+                      <AttachFile color="primary" />
+                      <input type="file" hidden ref={fileInputRef} onChange={handleFileChange} />
+                    </IconButton>
+                  </Tooltip>
+                  
+                  <Tooltip title="Voice Message">
+                    <IconButton 
+                      onClick={handleVoiceRecording}
+                      sx={{ 
+                        bgcolor: isRecording ? 'error.main' : 'rgba(102, 126, 234, 0.08)',
+                        color: isRecording ? 'white' : 'primary.main',
+                        '&:hover': { 
+                          bgcolor: isRecording ? 'error.dark' : 'rgba(102, 126, 234, 0.12)' 
+                        }
+                      }}
+                    >
+                      {isRecording ? <Stop /> : <Mic />}
+                    </IconButton>
+                  </Tooltip>
+                  
+                  <Tooltip title="Quick Actions">
+                    <IconButton 
+                      onClick={() => setShowQuickActions(!showQuickActions)}
+                      sx={{ 
+                        bgcolor: showQuickActions ? 'primary.main' : 'rgba(102, 126, 234, 0.08)',
+                        color: showQuickActions ? 'white' : 'primary.main',
+                        '&:hover': { 
+                          bgcolor: showQuickActions ? 'primary.dark' : 'rgba(102, 126, 234, 0.12)' 
+                        }
+                      }}
+                    >
+                      <EmojiEmotions />
+                    </IconButton>
+                  </Tooltip>
+                  
                   {attachment && (
                     <Chip
                       label={attachment.name}
@@ -557,6 +861,7 @@ const Chat = () => {
                       sx={{ ml: 1, maxWidth: 180 }}
                     />
                   )}
+                  
                   <TextField
                     fullWidth
                     multiline
@@ -565,22 +870,6 @@ const Chat = () => {
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton 
-                            sx={{ 
-                              bgcolor: 'rgba(102, 126, 234, 0.08)',
-                              '&:hover': {
-                                bgcolor: 'rgba(102, 126, 234, 0.12)'
-                              }
-                            }}
-                          >
-                            <EmojiEmotions color="primary" />
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    }}
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         borderRadius: 3,
@@ -594,10 +883,11 @@ const Chat = () => {
                       }
                     }}
                   />
+                  
                   <Button
                     variant="contained"
                     onClick={handleSendMessage}
-                    disabled={!message.trim()}
+                    disabled={!message.trim() && !attachment}
                     sx={{
                       borderRadius: 3,
                       minWidth: 48,
@@ -622,6 +912,79 @@ const Chat = () => {
           </Paper>
         </Fade>
       </Container>
+
+      {/* Call Dialog */}
+      <Dialog open={callDialogOpen} onClose={() => setCallDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ textAlign: 'center' }}>
+          {callType === 'video' ? <VideoCall sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} /> : 
+           <Phone sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />}
+          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+            {callType === 'video' ? 'Video Call' : 'Voice Call'}
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ textAlign: 'center', pb: 4 }}>
+          <Typography variant="body1" sx={{ mb: 3 }}>
+            Start a {callType} call with <strong>{chats[selectedChat]?.name}</strong>?
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', pb: 3 }}>
+          <Button onClick={() => setCallDialogOpen(false)} variant="outlined">
+            Cancel
+          </Button>
+          <Button onClick={handleCallConfirm} variant="contained" color="primary">
+            Start Call
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* More Options Menu */}
+      <Menu
+        anchorEl={moreMenuAnchor}
+        open={Boolean(moreMenuAnchor)}
+        onClose={handleMoreMenuClose}
+        sx={{
+          '& .MuiPaper-root': {
+            borderRadius: 3,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            backdropFilter: 'blur(20px)'
+          }
+        }}
+      >
+        <MenuItem onClick={handleMoreMenuClose}>
+          <Search sx={{ mr: 2 }} />
+          Search Messages
+        </MenuItem>
+        <MenuItem onClick={handleMoreMenuClose}>
+          <Share sx={{ mr: 2 }} />
+          Share Chat
+        </MenuItem>
+        <MenuItem onClick={handleMoreMenuClose}>
+          <ScheduleIcon sx={{ mr: 2 }} />
+          Schedule Session
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={handleMoreMenuClose} sx={{ color: 'error.main' }}>
+          <Delete sx={{ mr: 2 }} />
+          Clear Chat
+        </MenuItem>
+      </Menu>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
