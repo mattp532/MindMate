@@ -1,19 +1,34 @@
-require('dotenv').config();         
+require('dotenv').config();
 const express = require('express');
-const pool = require('./db');
-const app = express()
+const cors = require('cors');
+const authRoutes = require('./routes/authRoutes');
+const profileRoutes = require('./routes/profileRoutes');
+const authenticate = require('./middlewares/authenticate');
 
-const userRoutes = require('./routes/userRoutes');
+const app = express();
+const PORT = process.env.PORT || 8080;
 
-app.use(express.json())
-app.use('/api', userRoutes)
+// Middleware
+app.use(express.json());
 
-const PORT = process.env.BACKEND_PORT || 8080
+// Routes
+app.use('/api/auth', authRoutes);
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Protect profile routes with authentication middleware
+app.use('/api/profile', authenticate, profileRoutes);
+
+// Basic health check or root route
+app.get('/', (req, res) => {
+  res.send('API is running');
 });
 
-app.get('/', (req, res) => {
-  res.send("Hello, Diddy")
+// Global error handler (optional)
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(err.statusCode || 500).json({ error: err.message || 'Internal Server Error' });
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
 });
