@@ -58,7 +58,7 @@ const MapUpdater = ({ coords }) => {
   const map = useMap();
   useEffect(() => {
     if (coords) {
-      map.flyTo(coords, 14); // zoom to 14 for a slightly closer view
+      map.flyTo(coords, 13); // zoom to 13 for a wider view
     }
   }, [coords, map]);
   return null;
