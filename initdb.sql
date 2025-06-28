@@ -55,7 +55,7 @@ CREATE TABLE calls (
   match_id INT REFERENCES matches(id) ON DELETE CASCADE,
   started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   ended_at TIMESTAMP,
-  call_status VARCHAR(50) DEFAULT 'active' -- e.g., active, ended, missed
+  call_status VARCHAR(50) DEFAULT 'active'
 );
 
 -- Call participants

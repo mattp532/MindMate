@@ -6,12 +6,13 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: skillshare
     ports:
       - 5432:5432
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./initdb:/docker-entrypoint-initdb.d
-  
+
   backend:
     build:
       context: ./backend
@@ -21,9 +22,24 @@ services:
     depends_on:
       - db
     volumes:
-      - ./backend:/usr/src/app          # Live sync code
+      - ./backend:/usr/src/app
     working_dir: /usr/src/app
-    command: npm run dev                # Use nodemon for auto-restart
+    command: npm run dev
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com   
+      PGADMIN_DEFAULT_PASSWORD: admin       
+    ports:
+      - "5050:80"                              
+    depends_on:
+      - db
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin          
 
 volumes:
   pgdata:
+  pgadmin_data:
