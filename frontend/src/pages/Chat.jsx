@@ -32,12 +32,15 @@ import {
   OnlinePrediction,
   Schedule
 } from '@mui/icons-material';
+import { useSearchParams } from 'react-router-dom';
 
 const Chat = () => {
   const [message, setMessage] = React.useState("");
   const [selectedChat, setSelectedChat] = React.useState(0);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [searchParams] = useSearchParams();
+  const userId = searchParams.get('userId');
 
   // Mock data for demonstration
   const chats = [
@@ -115,6 +118,13 @@ const Chat = () => {
       isOwn: false
     }
   ];
+
+  React.useEffect(() => {
+    if (userId) {
+      const chatIndex = chats.findIndex(chat => chat.id === Number(userId));
+      if (chatIndex !== -1) setSelectedChat(chatIndex);
+    }
+  }, [userId]);
 
   const handleSendMessage = () => {
     if (message.trim()) {

@@ -43,6 +43,7 @@ import {
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { useNavigate } from 'react-router-dom';
 
 // Fix for default markers in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -57,6 +58,7 @@ const Dashboard = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [tabValue, setTabValue] = React.useState(0);
   const [mapLoaded, setMapLoaded] = React.useState(false);
+  const navigate = useNavigate();
 
   // Mock data for demonstration
   const mockMatches = [
@@ -233,7 +235,15 @@ const Dashboard = () => {
                       </ListItemAvatar>
                       <ListItemText primary={<Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}><Typography variant="h6" sx={{ fontWeight: 700, fontSize: { xs: '1rem', md: '1.25rem' }, color: 'text.primary' }}>{match.name}</Typography><Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><Star sx={{ color: 'warning.main', fontSize: 18 }} /><Typography variant="body2" sx={{ fontWeight: 600 }}>{match.rating}</Typography></Box></Box>} secondary={<Box><Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}><LocationOn sx={{ fontSize: 16, color: 'text.secondary' }} /><Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>{match.location}</Typography><Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 1 }}>{match.isOnline ? (<OnlinePrediction sx={{ fontSize: 16, color: 'success.main' }} />) : (<Schedule sx={{ fontSize: 16, color: 'text.secondary' }} />)}<Typography variant="caption" color="text.secondary">{match.lastActive}</Typography></Box></Box><Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>{match.skills.map((skill, skillIndex) => (<Chip key={skillIndex} label={skill} size="small" sx={{ bgcolor: 'rgba(102, 126, 234, 0.1)', color: 'primary.main', fontWeight: 600, fontSize: '0.75rem', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.2)' } }} />))}</Box></Box>} />
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, ml: 2 }}>
-                        <Button variant="contained" size="small" startIcon={<Message />} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)', '&:hover': { boxShadow: '0 6px 16px rgba(102, 126, 234, 0.4)', transform: 'translateY(-1px)' } }}>Message</Button>
+                        <Button 
+                          variant="contained" 
+                          size="small" 
+                          startIcon={<Message />} 
+                          sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)', '&:hover': { boxShadow: '0 6px 16px rgba(102, 126, 234, 0.4)', transform: 'translateY(-1px)' } }}
+                          onClick={() => navigate(`/chat?userId=${match.id}`)}
+                        >
+                          Message
+                        </Button>
                         <Button variant="outlined" size="small" startIcon={<VideoCall />} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, borderColor: 'primary.main', color: 'primary.main', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.08)', borderColor: 'primary.dark' } }}>Call</Button>
                       </Box>
                     </ListItemButton>
