@@ -2,7 +2,7 @@
 const pool = require('../db');
 
 exports.getProfile = async (firebaseUid) => {
-  const res = await pool.query('SELECT firebase_uid, email, name, bio, city, country, user_type, hourly_rate FROM users WHERE firebase_uid = $1', [firebaseUid]);
+  const res = await pool.query('SELECT firebase_uid, email, name, bio, city, country FROM users WHERE firebase_uid = $1', [firebaseUid]);
   if (res.rows.length === 0) {
     const error = new Error('User not found');
     error.statusCode = 404;
@@ -61,7 +61,7 @@ exports.updateProfile = async (firebaseUid, profileData) => {
         bio = $2, 
         city = $3
        WHERE firebase_uid = $4 
-       RETURNING firebase_uid, email, name, bio, city, country, user_type, hourly_rate`,
+       RETURNING firebase_uid, email, name, bio, city, country`,
       [fullName, bio, location, firebaseUid]
     );
     
