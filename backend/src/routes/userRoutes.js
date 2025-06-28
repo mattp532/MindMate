@@ -2,8 +2,12 @@ const express = require('express');
 const router = express.Router();
 
 const authenticate = require('../middlewares/authenticate');
-const { getOrCreateUser} = require('../controllers/userController');
+const userController = require('../controllers/userController');
 
-router.get('/user', authenticate, getOrCreateUser);
+// Sign up route - creates a new user
+router.post('/signup', authenticate, userController.signUp);
+
+// Sign in route - get existing user
+router.post('/signin', authenticate, userController.signIn);
 
 module.exports = router;
