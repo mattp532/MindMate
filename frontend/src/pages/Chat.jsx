@@ -64,7 +64,7 @@ import {
   CheckCircle,
   Warning
 } from '@mui/icons-material';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useRef, useState } from 'react';
 
 const Chat = () => {
@@ -74,6 +74,7 @@ const Chat = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [searchParams] = useSearchParams();
   const userId = searchParams.get('userId');
+  const navigate = useNavigate();
 
   // New state for enhanced features
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -282,6 +283,13 @@ const Chat = () => {
   const chatId = chats[selectedChat]?.id;
   const messages = messagesByChat[chatId] || [];
 
+  // Add this function to generate a unique room ID
+  const startVideoCall = () => {
+    const roomId = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const remoteName = chats[selectedChat]?.name || "User";
+    navigate(`/video-call/${roomId}`, { state: { remoteName } });
+  };
+
   return (
     <Box sx={{ 
       minHeight: '100vh',
@@ -386,37 +394,24 @@ const Chat = () => {
                           </Box>
                         }
                         secondary={
-                          <Box>
+                          <Box component="div">
                             <Typography 
                               variant="body2" 
                               color="text.secondary"
-                              sx={{ 
-                                fontWeight: 500,
-                                fontSize: '0.85rem',
-                                lineHeight: 1.4
-                              }}
+                              component="span"
+                              sx={{ fontWeight: 500, fontSize: '0.85rem', lineHeight: 1.4 }}
                             >
                               {chat.lastMessage}
                             </Typography>
-                            <Box sx={{ 
-                              display: 'flex', 
-                              justifyContent: 'space-between', 
-                              alignItems: 'center',
-                              mt: 0.5
-                            }}>
-                              <Typography variant="caption" color="text.secondary">
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
+                              <Typography variant="caption" color="text.secondary" component="span">
                                 {chat.time}
                               </Typography>
                               {chat.unread > 0 && (
                                 <Badge 
                                   badgeContent={chat.unread} 
                                   color="primary"
-                                  sx={{
-                                    '& .MuiBadge-badge': {
-                                      fontSize: '0.7rem',
-                                      fontWeight: 600
-                                    }
-                                  }}
+                                  sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem', fontWeight: 600 } }}
                                 />
                               )}
                             </Box>
@@ -538,9 +533,9 @@ const Chat = () => {
                         <Phone color="primary" />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Video Call">
+                    <Tooltip title="Video Call (P2P)">
                       <IconButton 
-                        onClick={() => handleCall('video')}
+                        onClick={startVideoCall}
                         sx={{ 
                           bgcolor: 'rgba(102, 126, 234, 0.08)',
                           '&:hover': {
