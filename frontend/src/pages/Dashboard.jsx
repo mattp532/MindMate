@@ -71,6 +71,7 @@ const Dashboard = () => {
   const [mapLoaded, setMapLoaded] = React.useState(false);
   const [selectedCoords, setSelectedCoords] = React.useState(null);
   const [selectedUserId, setSelectedUserId] = React.useState(null);
+  const [searchSkill, setSearchSkill] = React.useState("");
   const navigate = useNavigate();
 
   // Mock data for demonstration
@@ -184,6 +185,15 @@ const Dashboard = () => {
     );
   };
 
+  // Filter matches by skill
+  const filteredMatches = searchSkill.trim() === ""
+    ? mockMatches
+    : mockMatches.filter(match =>
+        match.skills.some(skill =>
+          skill.toLowerCase().includes(searchSkill.trim().toLowerCase())
+        )
+      );
+
   return (
     <Box sx={{ 
       minHeight: '100vh',
@@ -245,7 +255,7 @@ const Dashboard = () => {
               <Button variant="outlined" size="small" startIcon={<FilterList />} sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 600, borderColor: 'primary.main', color: 'primary.main', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.08)', borderColor: 'primary.dark' } }}>Filter</Button>
             </Box>
             <List sx={{ p: 0 }}>
-              {mockMatches.map((match, index) => (
+              {filteredMatches.map((match, index) => (
                 <Grow key={match.id} in={true} timeout={800 + index * 200}>
                   <ListItem 
                     sx={{ px: 0, py: 1, cursor: 'pointer', bgcolor: selectedUserId === match.id ? 'rgba(102, 126, 234, 0.08)' : 'inherit' }}
@@ -280,6 +290,11 @@ const Dashboard = () => {
                   </ListItem>
                 </Grow>
               ))}
+              {filteredMatches.length === 0 && (
+                <Typography sx={{ p: 3, textAlign: 'center', color: 'text.secondary', fontWeight: 600 }}>
+                  No matches found for that skill.
+                </Typography>
+              )}
             </List>
           </Paper>
         </Box>
@@ -303,6 +318,8 @@ const Dashboard = () => {
               <TextField
                 placeholder="Search for skills..."
                 size="small"
+                value={searchSkill}
+                onChange={e => setSearchSkill(e.target.value)}
                 sx={{
                   width: 'calc(100% - 180px)',
                   '& .MuiOutlinedInput-root': {
