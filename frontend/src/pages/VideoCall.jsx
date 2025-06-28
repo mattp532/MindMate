@@ -105,7 +105,12 @@ const VideoCall = () => {
   }, [socket, roomId]);
 
   const handleEndCall = () => {
-    navigate('/dashboard');
+    const chatId = location.state?.chatId;
+    if (chatId) {
+      navigate(`/chat?userId=${chatId}`);
+    } else {
+      navigate('/chat');
+    }
   };
 
   const toggleMic = () => {
@@ -174,7 +179,9 @@ const VideoCall = () => {
             </Box>
           </Box>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <Typography variant="subtitle2" align="center" sx={{ mb: 1, fontWeight: 700, color: 'primary.main', letterSpacing: 0.5 }}>Remote</Typography>
+            <Typography variant="subtitle2" align="center" sx={{ mb: 1, fontWeight: 700, color: 'primary.main', letterSpacing: 0.5 }}>
+              {remoteName}
+            </Typography>
             <Box sx={videoBoxStyles}>
               {remoteStreamAvailable ? (
                 <video ref={remoteVideoRef} autoPlay playsInline style={{ width: 340, height: 255, borderRadius: 4, objectFit: 'cover', background: 'transparent' }} />

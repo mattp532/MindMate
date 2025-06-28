@@ -287,7 +287,8 @@ const Chat = () => {
   const startVideoCall = () => {
     const roomId = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     const remoteName = chats[selectedChat]?.name || "User";
-    navigate(`/video-call/${roomId}`, { state: { remoteName } });
+    const chatId = chats[selectedChat]?.id;
+    navigate(`/video-call/${roomId}`, { state: { remoteName, chatId } });
   };
 
   return (
