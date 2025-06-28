@@ -21,7 +21,11 @@ import {
   Stepper,
   Step,
   StepLabel,
-  StepContent
+  StepContent,
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent
 } from '@mui/material';
 import { 
   Person, 
@@ -41,57 +45,47 @@ import {
 import VideoAssessment from '../components/VideoAssessment';
 
 const Profile = () => {
-  const [activeStep, setActiveStep] = React.useState(1);
-  const [showVideoAssessment, setShowVideoAssessment] = React.useState(false);
-  const [assessmentResult, setAssessmentResult] = React.useState(null);
-  const [skills, setSkills] = React.useState([
-    { name: "JavaScript", level: "Advanced", verified: true },
-    { name: "React", level: "Intermediate", verified: true },
-    { name: "Node.js", level: "Beginner", verified: false }
-  ]);
+  const [skills, setSkills] = React.useState([]); // { name, verified, score }
   const [newSkill, setNewSkill] = React.useState("");
+  const [showVideoAssessment, setShowVideoAssessment] = React.useState(false);
+  const [currentSkill, setCurrentSkill] = React.useState(null);
+  const [step, setStep] = React.useState(0); // 0: Add Skill, 1: Verify Skill, 2: Done
+  const [showCongrats, setShowCongrats] = React.useState(false);
+  const [lastVerifiedSkill, setLastVerifiedSkill] = React.useState(null);
 
-  const verificationSteps = [
-    {
-      label: 'Profile Completion',
-      description: 'Complete your basic profile information',
-      completed: true
-    },
-    {
-      label: 'Video Assessment',
-      description: 'Upload a video demonstrating your teaching abilities',
-      completed: assessmentResult !== null
-    },
-    {
-      label: 'Final Verification',
-      description: 'Complete final verification to start teaching',
-      completed: assessmentResult && assessmentResult.score >= 80
-    }
-  ];
-
+  // Add a new skill and immediately start verification
   const handleAddSkill = () => {
-    if (newSkill.trim()) {
-      setSkills([...skills, { name: newSkill, level: "Beginner", verified: false }]);
+    const skillName = newSkill.trim();
+    if (skillName && !skills.some(s => s.name.toLowerCase() === skillName.toLowerCase())) {
+      setSkills([...skills, { name: skillName, verified: false, score: null }]);
+      setCurrentSkill(skillName);
+      setShowVideoAssessment(true);
       setNewSkill("");
+      setStep(1);
     }
   };
 
+  // After assessment, update the skill as verified (if passed) and store the score
   const handleAssessmentComplete = (result) => {
-    setAssessmentResult(result);
+    setSkills(skills => skills.map(skill =>
+      skill.name === currentSkill
+        ? { ...skill, verified: result.score >= 80, score: result.score }
+        : skill
+    ));
     setShowVideoAssessment(false);
-    
-    // Update verification progress
-    if (result.score >= 80) {
-      setActiveStep(3);
-    } else {
-      setActiveStep(2);
-    }
+    setStep(2);
+    setLastVerifiedSkill({ name: currentSkill, score: result.score });
+    setShowCongrats(true);
+    setCurrentSkill(null);
   };
 
-  const getVerificationProgress = () => {
-    if (assessmentResult && assessmentResult.score >= 80) return 100;
-    if (assessmentResult) return 66;
-    return 33;
+  // Reset onboarding for another skill
+  const handleAddAnotherSkill = () => {
+    setStep(0);
+    setCurrentSkill(null);
+    setNewSkill("");
+    setShowCongrats(false);
+    setLastVerifiedSkill(null);
   };
 
   return (
@@ -116,10 +110,25 @@ const Profile = () => {
           Profile
         </Typography>
 
+        {/* Onboarding Stepper */}
+        <Box sx={{ maxWidth: 600, mx: 'auto', mb: 4 }}>
+          <Stepper activeStep={step} alternativeLabel>
+            <Step key="add-skill">
+              <StepLabel>Add Skill</StepLabel>
+            </Step>
+            <Step key="verify-skill">
+              <StepLabel>Verify Skill</StepLabel>
+            </Step>
+            <Step key="done">
+              <StepLabel>Done</StepLabel>
+            </Step>
+          </Stepper>
+        </Box>
+
         {/* Top Row: Flexbox for Profile, Skills, Teaching Statistics */}
-        <Box sx={{ display: 'flex', gap: 4, mb: 4, flexWrap: 'nowrap', alignItems: 'stretch' }}>
+        <Box sx={{ display: 'flex', gap: 4, mb: 4, flexWrap: 'wrap', alignItems: 'stretch', justifyContent: 'center' }}>
           {/* Profile Overview */}
-          <Box sx={{ minWidth: 400, maxWidth: 440, flex: '0 0 320px', display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ minWidth: 320, maxWidth: 400, flex: '0 0 320px', display: 'flex', flexDirection: 'column' }}>
             <Paper elevation={3} sx={{ p: { xs: 2, md: 4 }, borderRadius: 4, textAlign: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', height: 400, display: 'flex', flexDirection: 'column', justifyContent: 'stretch' }}>
               <Avatar sx={{ width: { xs: 80, md: 120 }, height: { xs: 80, md: 120 }, mx: 'auto', mb: 2, bgcolor: 'primary.main', fontSize: { xs: '2rem', md: '3rem' }, boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)' }}>JD</Avatar>
               <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', fontSize: { xs: '1.1rem', md: '1.5rem' }, mb: 1 }}>John Doe</Typography>
@@ -136,25 +145,75 @@ const Profile = () => {
             </Paper>
           </Box>
 
-          {/* Your Skills */}
+          {/* Skills Wizard */}
           <Box sx={{ minWidth: 350, maxWidth: 500, flex: '0 0 420px', display: 'flex', flexDirection: 'column' }}>
-            <Paper elevation={3} sx={{ p: { xs: 2, md: 4 }, borderRadius: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.08)', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', height: 400, display: 'flex', flexDirection: 'column', justifyContent: 'stretch' }}>
-              <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', fontSize: { xs: '1.1rem', md: '1.5rem' }, mb: 2 }}>Your Skills</Typography>
-              <Box sx={{ mb: 3, flex: 1, overflow: 'auto' }}>
-                <Grid container spacing={1}>
-                  {skills.map((skill, index) => (
-                    <Grid item key={index}>
-                      <Chip label={`${skill.name} (${skill.level})`} color={skill.verified ? "success" : "default"} variant={skill.verified ? "filled" : "outlined"} icon={skill.verified ? <Verified /> : undefined} sx={{ fontSize: { xs: '0.8rem', md: '0.9rem' }, height: { xs: 28, md: 36 }, fontWeight: 'bold', '&:hover': { transform: 'scale(1.05)', transition: 'transform 0.2s ease-in-out' } }} />
-                    </Grid>
-                  ))}
-                </Grid>
-              </Box>
+            <Paper elevation={6} sx={{ p: { xs: 3, md: 5 }, borderRadius: 4, boxShadow: '0 8px 32px rgba(102,126,234,0.10)', background: 'rgba(255, 255, 255, 0.98)', backdropFilter: 'blur(12px)', minHeight: 420, display: 'flex', flexDirection: 'column', justifyContent: 'stretch' }}>
+              <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', mb: 2, color: 'primary.main', textAlign: 'center' }}>Skill Verification</Typography>
+              {step === 0 && (
+                <>
+                  <Alert severity="info" sx={{ mb: 3, borderRadius: 2, fontSize: '1.1rem' }}>
+                    Add a skill you want to teach. You'll be asked to verify it with a short video!
+                  </Alert>
+                  <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' }, mb: 2, justifyContent: 'center' }}>
+                    <TextField label="Skill Name" value={newSkill} onChange={(e) => setNewSkill(e.target.value)} placeholder="e.g., Python, Design, Marketing" fullWidth sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: { xs: '1.1rem', md: '1.2rem' }, boxShadow: '0 2px 8px rgba(102,126,234,0.08)' } }} />
+                    <Button variant="contained" startIcon={<Add />} onClick={handleAddSkill} sx={{ minWidth: { xs: '100%', sm: 120 }, borderRadius: 2, py: 1.5, fontWeight: 'bold', textTransform: 'none', fontSize: { xs: '1.1rem', md: '1.2rem' }, boxShadow: '0 2px 8px rgba(102,126,234,0.12)' }}>Add</Button>
+                  </Box>
+                </>
+              )}
+              {step === 2 && (
+                <Alert severity="success" sx={{ mb: 3, borderRadius: 2, fontSize: '1.1rem', textAlign: 'center' }}>
+                  <CheckCircle sx={{ color: 'success.main', mr: 1, verticalAlign: 'middle' }} />
+                  Congratulations! Your skill has been verified. You can add more skills below.
+                </Alert>
+              )}
               <Divider sx={{ my: 2 }} />
-              <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 1, fontSize: { xs: '1rem', md: '1.15rem' } }}>Add New Skill</Typography>
-              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-                <TextField label="Skill Name" value={newSkill} onChange={(e) => setNewSkill(e.target.value)} placeholder="e.g., Python, Design, Marketing" fullWidth sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, '&:hover fieldset': { borderColor: 'primary.main' }, fontSize: { xs: '0.9rem', md: '1rem' } } }} />
-                <Button variant="contained" startIcon={<Add />} onClick={handleAddSkill} sx={{ minWidth: { xs: '100%', sm: 120 }, borderRadius: 2, py: 1.2, fontWeight: 'bold', textTransform: 'none', fontSize: { xs: '0.95rem', md: '1rem' } }}>Add</Button>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 1, fontSize: { xs: '1rem', md: '1.15rem' } }}>Your Skills</Typography>
+              <Box sx={{ mb: 3, flex: 1, overflow: 'auto', minHeight: 60 }}>
+                {skills.length === 0 ? (
+                  <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+                    No skills added yet.
+                  </Alert>
+                ) : (
+                  <>
+                    <Grid container spacing={1}>
+                      {skills.map((skill, index) => (
+                        <Grid item key={index}>
+                          <Tooltip title={skill.verified ? `Verified (Score: ${skill.score})` : skill.score ? `Needs Improvement (Score: ${skill.score})` : 'Not Verified'} arrow>
+                            <span style={{ cursor: skill.verified ? 'default' : 'pointer', display: 'inline-block' }} onClick={() => {
+                              if (!skill.verified) {
+                                setCurrentSkill(skill.name);
+                                setShowVideoAssessment(true);
+                                setStep(1);
+                              }
+                            }}>
+                              <Chip
+                                label={
+                                  <span style={{ fontWeight: 600 }}>
+                                    {skill.name} {skill.verified ? <CheckCircle style={{ color: '#43a047', verticalAlign: 'middle', marginLeft: 4 }} /> : skill.score ? <Pending style={{ color: '#ffa726', verticalAlign: 'middle', marginLeft: 4 }} /> : ''}
+                                  </span>
+                                }
+                                color={skill.verified ? "success" : skill.score ? "warning" : "default"}
+                                variant={skill.verified ? "filled" : "outlined"}
+                                sx={{ fontSize: { xs: '1rem', md: '1.1rem' }, height: { xs: 32, md: 40 }, fontWeight: 'bold', px: 2, boxShadow: skill.verified ? '0 2px 8px rgba(76,175,80,0.10)' : undefined, border: skill.verified ? '2px solid #43a047' : skill.score ? '2px solid #ffa726' : undefined }}
+                              />
+                            </span>
+                          </Tooltip>
+                        </Grid>
+                      ))}
+                    </Grid>
+                    {skills.some(skill => !skill.verified) && (
+                      <Alert severity="warning" sx={{ mt: 3, borderRadius: 2, fontWeight: 'bold', textAlign: 'center' }}>
+                        You have unverified skills. Click a skill to resubmit your video and get verified.
+                      </Alert>
+                    )}
+                  </>
+                )}
               </Box>
+              {step === 2 && (
+                <Button variant="outlined" onClick={handleAddAnotherSkill} sx={{ borderRadius: 2, py: 1.2, fontWeight: 'bold', textTransform: 'none', fontSize: { xs: '1rem', md: '1.1rem' }, mt: 2 }}>
+                  Add Another Skill
+                </Button>
+              )}
             </Paper>
           </Box>
 
@@ -184,63 +243,39 @@ const Profile = () => {
           </Box>
         </Box>
 
-        {/* Teaching Verification Full Width Below */}
-        <Grid container spacing={4}>
-          <Grid item xs={12}>
-            <Paper elevation={3} sx={{ p: { xs: 3, md: 4 }, borderRadius: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.08)', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
-                <Verified sx={{ color: 'primary.main', fontSize: 32 }} />
-                <Typography variant="h5" sx={{ fontWeight: 'bold', fontSize: { xs: '1.25rem', md: '1.5rem' } }}>Teaching Verification</Typography>
-              </Box>
-              <Stepper activeStep={activeStep} orientation="vertical" sx={{ '& .MuiStepLabel-root .Mui-completed': { color: 'success.main', }, '& .MuiStepLabel-root .Mui-active': { color: 'primary.main', } }}>
-                {verificationSteps.map((step, index) => (
-                  <Step key={step.label}>
-                    <StepLabel StepIconComponent={step.completed ? CheckCircle : Pending} StepIconProps={{ sx: { color: step.completed ? 'success.main' : 'grey.400', fontSize: 24 } }}>
-                      <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: { xs: '1rem', md: '1.1rem' } }}>{step.label}</Typography>
-                    </StepLabel>
-                    <StepContent>
-                      <Typography color="text.secondary" sx={{ mb: 3, fontSize: { xs: '0.9rem', md: '1rem' }, lineHeight: 1.5 }}>{step.description}</Typography>
-                      {index === 1 && (
-                        <Box sx={{ mb: 3 }}>
-                          {!assessmentResult ? (
-                            <Button variant="contained" startIcon={<Videocam />} onClick={() => setShowVideoAssessment(true)} sx={{ mr: 2, mb: { xs: 2, sm: 0 }, borderRadius: 2, py: 1.5, fontWeight: 'bold', textTransform: 'none' }}>Start Video Assessment</Button>
-                          ) : (
-                            <Box>
-                              <Alert severity={assessmentResult.score >= 80 ? 'success' : 'warning'} sx={{ mb: 2, borderRadius: 2 }}>
-                                Assessment Score: {assessmentResult.score}/100
-                                {assessmentResult.score >= 80 ? ' - Excellent! You can proceed to final verification.' : ' - Good effort, but you need to improve. Please try again.'}
-                              </Alert>
-                              <Button variant="outlined" onClick={() => setShowVideoAssessment(true)} sx={{ borderRadius: 2, py: 1.5, fontWeight: 'bold', textTransform: 'none' }}>Retake Assessment</Button>
-                            </Box>
-                          )}
-                        </Box>
-                      )}
-                      {index === 2 && assessmentResult && assessmentResult.score >= 80 && (
-                        <Box sx={{ mb: 3 }}>
-                          <Button variant="contained" startIcon={<VideoCall />} sx={{ mr: 2, mb: { xs: 2, sm: 0 }, borderRadius: 2, py: 1.5, fontWeight: 'bold', textTransform: 'none' }}>Complete Final Verification</Button>
-                          <Button variant="outlined" sx={{ borderRadius: 2, py: 1.5, fontWeight: 'bold', textTransform: 'none' }}>View Requirements</Button>
-                        </Box>
-                      )}
-                    </StepContent>
-                  </Step>
-                ))}
-              </Stepper>
-              <Box sx={{ mt: 4, p: 3, bgcolor: 'rgba(102, 126, 234, 0.05)', borderRadius: 3, border: '1px solid rgba(102, 126, 234, 0.1)' }}>
-                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold', mb: 2 }}><strong>Verification Progress:</strong> {getVerificationProgress()}% Complete</Typography>
-                <LinearProgress variant="determinate" value={getVerificationProgress()} sx={{ height: 10, borderRadius: 5, bgcolor: 'rgba(102, 126, 234, 0.1)', '& .MuiLinearProgress-bar': { borderRadius: 5, bgcolor: 'primary.main' } }} />
-              </Box>
-            </Paper>
-          </Grid>
-        </Grid>
-      </Container>
+        {/* Only show verification/assessment after a skill is added */}
+        {showVideoAssessment && currentSkill && (
+          <VideoAssessment
+            skillName={currentSkill}
+            onAssessmentComplete={handleAssessmentComplete}
+            onClose={() => {
+              setShowVideoAssessment(false);
+              setCurrentSkill(null);
+            }}
+          />
+        )}
 
-      {/* Video Assessment Dialog */}
-      {showVideoAssessment && (
-        <VideoAssessment
-          onAssessmentComplete={handleAssessmentComplete}
-          onClose={() => setShowVideoAssessment(false)}
-        />
-      )}
+        {/* Congrats Modal Popup */}
+        <Dialog open={showCongrats && !!lastVerifiedSkill} onClose={() => setShowCongrats(false)} maxWidth="xs" fullWidth>
+          <DialogTitle sx={{ textAlign: 'center', pt: 4 }}>
+            <CheckCircle sx={{ color: 'success.main', fontSize: 48, mb: 2 }} />
+            <Typography variant="h5" sx={{ fontWeight: 'bold', mt: 2 }}>
+              Congratulations!
+            </Typography>
+          </DialogTitle>
+          <DialogContent sx={{ textAlign: 'center', pb: 4 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Your skill <b>{lastVerifiedSkill?.name}</b> has been verified!
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 3 }}>
+              Score: <b>{lastVerifiedSkill?.score}</b>
+            </Typography>
+            <Button variant="contained" color="primary" onClick={() => setShowCongrats(false)} sx={{ borderRadius: 2, px: 4, py: 1.5, fontWeight: 'bold', textTransform: 'none', fontSize: '1.1rem' }}>
+              Close
+            </Button>
+          </DialogContent>
+        </Dialog>
+      </Container>
     </Box>
   );
 };

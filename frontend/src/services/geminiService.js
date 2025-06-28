@@ -176,7 +176,7 @@ class GeminiService {
   }
 
   // Analyze video assessment for teaching verification
-  async analyzeVideoAssessment(videoFileName) {
+  async analyzeVideoAssessment(videoFileName, skillName) {
     try {
       console.log('Gemini: Starting video analysis for:', videoFileName);
       console.log('Gemini: API Key available:', !!this.apiKey);
@@ -188,12 +188,14 @@ class GeminiService {
         size: 'Video file uploaded successfully'
       };
       
-      const prompt = `As an AI assessment expert for MindMate, I need you to provide a comprehensive teaching assessment based on a video file that was uploaded.
+      const prompt = `As an AI assessment expert for MindMate, I need you to provide a comprehensive teaching assessment for a user who is verifying their skill: "${skillName}".
 
       Video file information: ${JSON.stringify(fileInfo)}
       
-      Since I cannot directly analyze the video content, please provide a realistic and encouraging assessment that would be typical for a teaching demonstration video. Consider common teaching strengths and areas for improvement.
-
+      IMPORTANT: The user is supposed to demonstrate their knowledge and teaching ability in the skill "${skillName}". If the video is NOT about "${skillName}", or is about a different topic, you MUST give a lower score (for example, below 80) and clearly mention in the feedback that the video topic did not match the required skill. If the video is highly relevant to "${skillName}", give a higher score and positive feedback.
+      
+      Since I cannot directly analyze the video content, you may infer the topic from the video file name or user input, and simulate a realistic assessment. Consider common teaching strengths and areas for improvement.
+      
       Please provide a comprehensive assessment in JSON format with the following structure:
       {
         "score": 85,
@@ -248,11 +250,11 @@ class GeminiService {
       }
       
       Scoring criteria:
-      - 80-100: Excellent - Can proceed with profile
-      - 60-79: Good - Needs improvement, can resubmit
-      - Below 60: Needs significant improvement, must resubmit
+      - 80-100: Excellent - Can proceed with profile (video is highly relevant to "${skillName}")
+      - 60-79: Good - Needs improvement, can resubmit (video is only somewhat relevant or missing some aspects)
+      - Below 60: Needs significant improvement, must resubmit (video is not about "${skillName}", or is off-topic)
       
-      Be realistic but encouraging in your assessment. Provide specific, actionable feedback that will help the user improve. Generate a score between 75-95 to be encouraging but realistic.`;
+      Be realistic but encouraging in your assessment. Provide specific, actionable feedback that will help the user improve. Generate a score between 75-95 to be encouraging but realistic, but penalize off-topic videos as described above.`;
 
       console.log('Gemini: Sending request to API...');
       
