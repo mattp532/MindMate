@@ -8,7 +8,9 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install
+RUN npm install \
+    && npm install -g nodemon \
+    && chmod +x /usr/src/app/node_modules/.bin/nodemon || true
 
 # Copy all backend source code
 COPY . .
@@ -17,4 +19,4 @@ COPY . .
 EXPOSE 8080
 
 # Start the app
-CMD ["npm", "run", "dev"]
+CMD ["npx", "nodemon", "src/server.js"]
