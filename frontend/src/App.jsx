@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { 
   AppBar, 
   Toolbar, 
@@ -9,7 +9,16 @@ import {
   Avatar, 
   IconButton, 
   Badge,
-  Container
+  Container,
+  Drawer,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  useTheme,
+  useMediaQuery,
+  Fade,
+  Slide
 } from '@mui/material';
 import { 
   Home, 
@@ -17,7 +26,9 @@ import {
   Person, 
   Chat, 
   Notifications,
-  School
+  School,
+  Menu,
+  Close
 } from '@mui/icons-material';
 import HomePage from './pages/Home';
 import Login from './pages/Login';
@@ -26,188 +37,301 @@ import DashboardPage from './pages/Dashboard';
 import Profile from './pages/Profile';
 import ChatPage from './pages/Chat';
 
+const Navigation = () => {
+  const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [mobileOpen, setMobileOpen] = React.useState(false);
+
+  const navItems = [
+    { path: '/', label: 'Home', icon: <Home /> },
+    { path: '/dashboard', label: 'Dashboard', icon: <Dashboard /> },
+    { path: '/chat', label: 'Chat', icon: <Chat /> },
+  ];
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  const isActive = (path) => location.pathname === path;
+
+  const drawer = (
+    <Box sx={{ width: 280, pt: 2 }}>
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: 1, 
+        px: 3, 
+        py: 2,
+        mb: 2
+      }}>
+        <School sx={{ 
+          fontSize: 32,
+          color: 'primary.main'
+        }} />
+        <Typography 
+          variant="h6" 
+          sx={{ 
+            fontWeight: 800,
+            fontSize: '1.5rem',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent'
+          }}
+        >
+          MindMate
+        </Typography>
+      </Box>
+      <List>
+        {navItems.map((item) => (
+          <ListItem 
+            key={item.path}
+            component={Link}
+            to={item.path}
+            onClick={() => setMobileOpen(false)}
+            sx={{
+              mx: 2,
+              mb: 1,
+              borderRadius: 3,
+              bgcolor: isActive(item.path) ? 'primary.main' : 'transparent',
+              color: isActive(item.path) ? 'white' : 'text.primary',
+              '&:hover': {
+                bgcolor: isActive(item.path) ? 'primary.dark' : 'rgba(102, 126, 234, 0.08)',
+                transform: 'translateX(4px)',
+                transition: 'all 0.2s ease-in-out'
+              },
+              transition: 'all 0.2s ease-in-out'
+            }}
+          >
+            <ListItemIcon sx={{ 
+              color: 'inherit',
+              minWidth: 40
+            }}>
+              {item.icon}
+            </ListItemIcon>
+            <ListItemText 
+              primary={item.label} 
+              sx={{ 
+                '& .MuiListItemText-primary': {
+                  fontWeight: isActive(item.path) ? 600 : 500,
+                  fontSize: '0.95rem'
+                }
+              }}
+            />
+          </ListItem>
+        ))}
+      </List>
+    </Box>
+  );
+
+  return (
+    <>
+      <AppBar 
+        position="sticky" 
+        elevation={0}
+        sx={{ 
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+          transition: 'all 0.3s ease-in-out'
+        }}
+      >
+        <Container maxWidth="lg">
+          <Toolbar sx={{ 
+            px: { xs: 1, md: 0 },
+            py: { xs: 1, md: 1.5 },
+            minHeight: { xs: 64, md: 72 }
+          }}>
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 1.5,
+              mr: { xs: 2, md: 4 }
+            }}>
+              <IconButton
+                color="primary"
+                aria-label="open drawer"
+                edge="start"
+                onClick={handleDrawerToggle}
+                sx={{ 
+                  mr: 2, 
+                  display: { md: 'none' },
+                  bgcolor: 'rgba(102, 126, 234, 0.08)',
+                  '&:hover': {
+                    bgcolor: 'rgba(102, 126, 234, 0.12)'
+                  }
+                }}
+              >
+                <Menu />
+              </IconButton>
+              <School sx={{ 
+                fontSize: { xs: 28, md: 32 },
+                color: 'primary.main'
+              }} />
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  fontWeight: 800,
+                  fontSize: { xs: '1.25rem', md: '1.5rem' },
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
+                }}
+              >
+                MindMate
+              </Typography>
+            </Box>
+
+            <Box sx={{ 
+              flexGrow: 1, 
+              display: { xs: 'none', md: 'flex' },
+              gap: 1
+            }}>
+              {navItems.map((item) => (
+                <Fade key={item.path} in={true} timeout={300 + navItems.indexOf(item) * 100}>
+                  <Button 
+                    component={Link} 
+                    to={item.path}
+                    startIcon={item.icon}
+                    sx={{ 
+                      borderRadius: 3,
+                      px: 3,
+                      py: 1.5,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      fontSize: '0.95rem',
+                      color: isActive(item.path) ? 'primary.main' : 'text.primary',
+                      bgcolor: isActive(item.path) ? 'rgba(102, 126, 234, 0.08)' : 'transparent',
+                      '&:hover': {
+                        bgcolor: isActive(item.path) ? 'rgba(102, 126, 234, 0.12)' : 'rgba(102, 126, 234, 0.04)',
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.15)'
+                      },
+                      transition: 'all 0.2s ease-in-out'
+                    }}
+                  >
+                    {item.label}
+                  </Button>
+                </Fade>
+              ))}
+            </Box>
+
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: { xs: 1, md: 2 }
+            }}>
+              <IconButton 
+                sx={{ 
+                  bgcolor: 'rgba(102, 126, 234, 0.08)',
+                  '&:hover': {
+                    bgcolor: 'rgba(102, 126, 234, 0.12)',
+                    transform: 'scale(1.05)'
+                  },
+                  transition: 'all 0.2s ease-in-out'
+                }}
+              >
+                <Badge badgeContent={3} color="error">
+                  <Notifications color="primary" />
+                </Badge>
+              </IconButton>
+              
+              <Button 
+                component={Link} 
+                to="/profile"
+                startIcon={<Person />}
+                sx={{ 
+                  borderRadius: 3,
+                  px: { xs: 1.5, md: 2.5 },
+                  py: { xs: 0.75, md: 1 },
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: { xs: '0.85rem', md: '0.95rem' },
+                  color: 'text.primary',
+                  bgcolor: 'rgba(102, 126, 234, 0.08)',
+                  '&:hover': {
+                    bgcolor: 'rgba(102, 126, 234, 0.12)',
+                    transform: 'translateY(-1px)'
+                  },
+                  transition: 'all 0.2s ease-in-out'
+                }}
+              >
+                Profile
+              </Button>
+
+              <Button 
+                variant="contained" 
+                component={Link} 
+                to="/login"
+                sx={{ 
+                  borderRadius: 3,
+                  px: { xs: 1.5, md: 2.5 },
+                  py: { xs: 0.75, md: 1 },
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: { xs: '0.85rem', md: '0.95rem' },
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)',
+                  '&:hover': {
+                    boxShadow: '0 6px 25px rgba(102, 126, 234, 0.4)',
+                    transform: 'translateY(-1px)'
+                  },
+                  transition: 'all 0.2s ease-in-out'
+                }}
+              >
+                Login
+              </Button>
+            </Box>
+          </Toolbar>
+        </Container>
+      </AppBar>
+
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={handleDrawerToggle}
+        ModalProps={{
+          keepMounted: true,
+        }}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': { 
+            boxSizing: 'border-box', 
+            width: 280,
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)'
+          },
+        }}
+      >
+        {drawer}
+      </Drawer>
+    </>
+  );
+};
+
 const App = () => {
   return (
     <Router>
-      <Box sx={{ flexGrow: 1 }}>
-        <AppBar 
-          position="static" 
-          sx={{ 
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-            backdropFilter: 'blur(10px)'
-          }}
-        >
-          <Container maxWidth="lg">
-            <Toolbar sx={{ 
-              px: { xs: 1, md: 0 },
-              py: { xs: 1, md: 1.5 }
-            }}>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1,
-                mr: { xs: 2, md: 4 }
-              }}>
-                <School sx={{ 
-                  fontSize: { xs: 28, md: 32 },
-                  color: 'white'
-                }} />
-                <Typography 
-                  variant="h6" 
-                  sx={{ 
-                    fontWeight: 'bold',
-                    fontSize: { xs: '1.25rem', md: '1.5rem' },
-                    color: 'white'
-                  }}
-                >
-                  MindMate
-                </Typography>
-              </Box>
-
-              <Box sx={{ 
-                flexGrow: 1, 
-                display: { xs: 'none', md: 'flex' },
-                gap: 1
-              }}>
-                <Button 
-                  color="inherit" 
-                  component={Link} 
-                  to="/"
-                  startIcon={<Home />}
-                  sx={{ 
-                    borderRadius: 2,
-                    px: 2,
-                    py: 1,
-                    textTransform: 'none',
-                    fontWeight: 'bold',
-                    fontSize: '0.95rem',
-                    '&:hover': {
-                      bgcolor: 'rgba(255,255,255,0.1)',
-                      transform: 'translateY(-1px)'
-                    }
-                  }}
-                >
-                  Home
-                </Button>
-                <Button 
-                  color="inherit" 
-                  component={Link} 
-                  to="/dashboard"
-                  startIcon={<Dashboard />}
-                  sx={{ 
-                    borderRadius: 2,
-                    px: 2,
-                    py: 1,
-                    textTransform: 'none',
-                    fontWeight: 'bold',
-                    fontSize: '0.95rem',
-                    '&:hover': {
-                      bgcolor: 'rgba(255,255,255,0.1)',
-                      transform: 'translateY(-1px)'
-                    }
-                  }}
-                >
-                  Dashboard
-                </Button>
-                <Button 
-                  color="inherit" 
-                  component={Link} 
-                  to="/chat"
-                  startIcon={<Chat />}
-                  sx={{ 
-                    borderRadius: 2,
-                    px: 2,
-                    py: 1,
-                    textTransform: 'none',
-                    fontWeight: 'bold',
-                    fontSize: '0.95rem',
-                    '&:hover': {
-                      bgcolor: 'rgba(255,255,255,0.1)',
-                      transform: 'translateY(-1px)'
-                    }
-                  }}
-                >
-                  Chat
-                </Button>
-              </Box>
-
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: { xs: 1, md: 2 }
-              }}>
-                <IconButton 
-                  color="inherit"
-                  sx={{ 
-                    bgcolor: 'rgba(255,255,255,0.1)',
-                    '&:hover': {
-                      bgcolor: 'rgba(255,255,255,0.2)',
-                      transform: 'scale(1.05)'
-                    }
-                  }}
-                >
-                  <Badge badgeContent={3} color="error">
-                    <Notifications />
-                  </Badge>
-                </IconButton>
-                
-                <Button 
-                  color="inherit" 
-                  component={Link} 
-                  to="/profile"
-                  startIcon={<Person />}
-                  sx={{ 
-                    borderRadius: 2,
-                    px: { xs: 1.5, md: 2 },
-                    py: { xs: 0.75, md: 1 },
-                    textTransform: 'none',
-                    fontWeight: 'bold',
-                    fontSize: { xs: '0.85rem', md: '0.95rem' },
-                    '&:hover': {
-                      bgcolor: 'rgba(255,255,255,0.1)',
-                      transform: 'translateY(-1px)'
-                    }
-                  }}
-                >
-                  Profile
-                </Button>
-
-                <Button 
-                  variant="outlined" 
-                  color="inherit" 
-                  component={Link} 
-                  to="/login"
-                  sx={{ 
-                    borderRadius: 2,
-                    px: { xs: 1.5, md: 2 },
-                    py: { xs: 0.75, md: 1 },
-                    textTransform: 'none',
-                    fontWeight: 'bold',
-                    fontSize: { xs: '0.85rem', md: '0.95rem' },
-                    borderColor: 'rgba(255,255,255,0.5)',
-                    '&:hover': {
-                      borderColor: 'white',
-                      bgcolor: 'rgba(255,255,255,0.1)',
-                      transform: 'translateY(-1px)'
-                    }
-                  }}
-                >
-                  Login
-                </Button>
-              </Box>
-            </Toolbar>
-          </Container>
-        </AppBar>
-
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/chat" element={<ChatPage />} />
-        </Routes>
+      <Box sx={{ 
+        flexGrow: 1,
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
+      }}>
+        <Navigation />
+        <Slide direction="up" in={true} timeout={500}>
+          <Box>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/chat" element={<ChatPage />} />
+            </Routes>
+          </Box>
+        </Slide>
       </Box>
     </Router>
   );
