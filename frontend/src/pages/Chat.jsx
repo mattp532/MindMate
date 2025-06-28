@@ -450,7 +450,7 @@ const Chat = () => {
                                 bgcolor: msg.isOwn 
                                   ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                                   : 'rgba(255, 255, 255, 0.9)',
-                                color: msg.isOwn ? 'white' : 'text.primary',
+                                color: 'text.primary',
                                 boxShadow: msg.isOwn 
                                   ? '0 4px 12px rgba(102, 126, 234, 0.3)'
                                   : '0 2px 8px rgba(0,0,0,0.08)',
