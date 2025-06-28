@@ -5,6 +5,7 @@ exports.signup = async (req, res) => {
     const firebaseUser = req.user;  // assume auth middleware decoded token and put user here
     const user = await userService.createUser(firebaseUser);
     res.status(201).json(user);
+    console.log("User signed in succesfully")
   } catch (err) {
     if (err.statusCode) {
       return res.status(err.statusCode).json({ error: err.message });
