@@ -4,14 +4,14 @@ import { getFirestore } from 'firebase/firestore';
 
 // Your Firebase configuration
 // Replace these values with your actual Firebase project configuration
+// Get these values from your Firebase project settings
 const firebaseConfig = {
-    apiKey: "AIzaSyBK-fxWKIMbQ0M97YDs_TdnsopqZmZQSfg",
-    authDomain: "mindmate-a2bd4.firebaseapp.com",
-    projectId: "mindmate-a2bd4",
-    storageBucket: "mindmate-a2bd4.firebasestorage.app",
-    messagingSenderId: "841505290492",
-    appId: "1:841505290492:web:371cf7ec58da2580383f79",
-    measurementId: "G-MVMJ7E4D8R"
+  apiKey: "your-api-key-here",
+  authDomain: "your-project-id.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project-id.appspot.com",
+  messagingSenderId: "your-messaging-sender-id",
+  appId: "your-app-id"
 };
 
 // Initialize Firebase
