@@ -5,46 +5,154 @@ import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
-import Container from '@mui/material/Container';
+import Avatar from '@mui/material/Avatar';
+import Badge from '@mui/material/Badge';
+import IconButton from '@mui/material/IconButton';
+import { 
+  Notifications, 
+  School, 
+  Message, 
+  Person, 
+  Dashboard as DashboardIcon,
+  Home as HomeIcon
+} from '@mui/icons-material';
 
-// Placeholder components for each page
-function Home() {
-  return <Container><Typography variant="h4">Welcome to MindMate Skill Sharing!</Typography></Container>;
-}
-function Login() {
-  return <Container><Typography variant="h4">Login</Typography></Container>;
-}
-function Register() {
-  return <Container><Typography variant="h4">Register</Typography></Container>;
-}
-function Dashboard() {
-  return <Container><Typography variant="h4">Dashboard: Find Matches & Search Skills</Typography></Container>;
-}
-function Profile() {
-  return <Container><Typography variant="h4">Profile: Verify Teaching Ability</Typography></Container>;
-}
-function Chat() {
-  return <Container><Typography variant="h4">Chat</Typography></Container>;
-}
+import Home from './pages/Home';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Dashboard from './pages/Dashboard';
+import Profile from './pages/Profile';
+import Chat from './pages/Chat';
 
 function App() {
   return (
     <Router>
       <Box sx={{ flexGrow: 1 }}>
-        <AppBar position="static">
+        <AppBar 
+          position="static" 
+          sx={{ 
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+          }}
+        >
           <Toolbar>
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              MindMate
-            </Typography>
-            <Button color="inherit" component={Link} to="/">Home</Button>
-            <Button color="inherit" component={Link} to="/dashboard">Dashboard</Button>
-            <Button color="inherit" component={Link} to="/profile">Profile</Button>
-            <Button color="inherit" component={Link} to="/chat">Chat</Button>
-            <Button color="inherit" component={Link} to="/login">Login</Button>
-            <Button color="inherit" component={Link} to="/register">Register</Button>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexGrow: 1 }}>
+              <School sx={{ fontSize: 32, mr: 1 }} />
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                MindMate
+              </Typography>
+            </Box>
+            
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Button 
+                color="inherit" 
+                component={Link} 
+                to="/"
+                startIcon={<HomeIcon />}
+                sx={{ 
+                  '&:hover': { 
+                    bgcolor: 'rgba(255,255,255,0.1)',
+                    borderRadius: 2
+                  }
+                }}
+              >
+                Home
+              </Button>
+              <Button 
+                color="inherit" 
+                component={Link} 
+                to="/dashboard"
+                startIcon={<DashboardIcon />}
+                sx={{ 
+                  '&:hover': { 
+                    bgcolor: 'rgba(255,255,255,0.1)',
+                    borderRadius: 2
+                  }
+                }}
+              >
+                Dashboard
+              </Button>
+              <Button 
+                color="inherit" 
+                component={Link} 
+                to="/profile"
+                startIcon={<Person />}
+                sx={{ 
+                  '&:hover': { 
+                    bgcolor: 'rgba(255,255,255,0.1)',
+                    borderRadius: 2
+                  }
+                }}
+              >
+                Profile
+              </Button>
+              <Button 
+                color="inherit" 
+                component={Link} 
+                to="/chat"
+                startIcon={<Message />}
+                sx={{ 
+                  '&:hover': { 
+                    bgcolor: 'rgba(255,255,255,0.1)',
+                    borderRadius: 2
+                  }
+                }}
+              >
+                Chat
+              </Button>
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 2 }}>
+              <IconButton color="inherit">
+                <Badge badgeContent={3} color="error">
+                  <Notifications />
+                </Badge>
+              </IconButton>
+              <Avatar 
+                sx={{ 
+                  width: 40, 
+                  height: 40, 
+                  bgcolor: 'rgba(255,255,255,0.2)',
+                  cursor: 'pointer',
+                  '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }
+                }}
+              >
+                JD
+              </Avatar>
+            </Box>
+
+            <Box sx={{ display: 'flex', gap: 1, ml: 2 }}>
+              <Button 
+                variant="outlined" 
+                color="inherit" 
+                component={Link} 
+                to="/login"
+                sx={{ 
+                  borderColor: 'rgba(255,255,255,0.5)',
+                  '&:hover': { 
+                    borderColor: 'white',
+                    bgcolor: 'rgba(255,255,255,0.1)'
+                  }
+                }}
+              >
+                Login
+              </Button>
+              <Button 
+                variant="contained" 
+                component={Link} 
+                to="/register"
+                sx={{ 
+                  bgcolor: 'white', 
+                  color: '#667eea',
+                  '&:hover': { bgcolor: '#f5f5f5' }
+                }}
+              >
+                Sign Up
+              </Button>
+            </Box>
           </Toolbar>
         </AppBar>
-        <Box sx={{ mt: 4 }}>
+        <Box sx={{ mt: 2 }}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
