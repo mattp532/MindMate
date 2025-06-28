@@ -9,5 +9,5 @@ app.listen(PORT, () => {
 });
 
 app.get('/', (req, res) => {
-  res.send("Diddy")
+  res.send("Hello, Diddy")
 });
