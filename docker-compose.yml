@@ -19,6 +19,11 @@ services:
       - "8080:8080"
     depends_on:
       - db
+    volumes:
+      - ./backend:/usr/src/app          # Live sync code
+      - /usr/src/app/node_modules       # Prevent local node_modules overwrite
+    working_dir: /usr/src/app
+    command: npm run dev                # Use nodemon for auto-restart
 
 volumes:
   pgdata:
