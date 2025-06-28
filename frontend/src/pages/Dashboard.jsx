@@ -170,45 +170,6 @@ const Dashboard = () => {
       py: { xs: 3, md: 4 },
       px: { xs: 2, md: 4 }
     }}>
-      {/* Welcome Section */}
-      <Fade in={true} timeout={600}>
-        <Box sx={{ 
-          mb: { xs: 2, md: 3 },
-          textAlign: { xs: 'center', md: 'left' },
-          maxWidth: 'lg',
-          mx: 'auto',
-          px: { xs: 0, md: 0 }
-        }}>
-          <Typography 
-            variant="h2" 
-            gutterBottom 
-            sx={{ 
-              fontWeight: 800,
-              fontSize: { xs: '2rem', md: '3rem' },
-              mb: 2,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
-            }}
-          >
-            Welcome back, User! 👋
-          </Typography>
-          <Typography 
-            variant="h6" 
-            color="text.secondary"
-            sx={{ 
-              fontSize: { xs: '1rem', md: '1.25rem' },
-              lineHeight: 1.6,
-              maxWidth: 600,
-              fontWeight: 400
-            }}
-          >
-            Ready to learn something new today? Here are your matches and trending skills.
-          </Typography>
-        </Box>
-      </Fade>
-
       {/* Only show Matches and Map sections */}
       <Box sx={{ 
         display: 'flex', 
@@ -222,6 +183,41 @@ const Dashboard = () => {
           pl: { xs: 0, md: 4 },
           minWidth: 0
         }}>
+          {/* Welcome Section */}
+          <Fade in={true} timeout={600}>
+            <Box sx={{ 
+              mb: 3,
+              textAlign: 'left'
+            }}>
+              <Typography 
+                variant="h2" 
+                gutterBottom 
+                sx={{ 
+                  fontWeight: 800,
+                  fontSize: { xs: '1.5rem', md: '2rem' },
+                  mb: 1,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
+                }}
+              >
+                Welcome back, User! 👋
+              </Typography>
+              <Typography 
+                variant="h6" 
+                color="text.secondary"
+                sx={{ 
+                  fontSize: { xs: '0.875rem', md: '1rem' },
+                  lineHeight: 1.5,
+                  fontWeight: 400
+                }}
+              >
+                Ready to learn something new today? Here are your matches and trending skills.
+              </Typography>
+            </Box>
+          </Fade>
+
           <Paper elevation={0} sx={{ p: { xs: 3, md: 4 }, borderRadius: 4, height: 'fit-content', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255, 255, 255, 0.2)' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
               <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', md: '2rem' }, color: 'text.primary' }}>Your Matches</Typography>
@@ -252,12 +248,91 @@ const Dashboard = () => {
           pr: { xs: 0, md: 4 },
           minWidth: 0
         }}>
+          {/* Search Container */}
+          <Paper elevation={0} sx={{ 
+            mb: 3, 
+            p: 3, 
+            borderRadius: 4, 
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)', 
+            background: 'rgba(255, 255, 255, 0.9)', 
+            backdropFilter: 'blur(20px)', 
+            border: '1px solid rgba(255, 255, 255, 0.2)' 
+          }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>Search Skills</Typography>
+              <TextField
+                placeholder="Search for skills..."
+                size="small"
+                sx={{
+                  width: 'calc(100% - 180px)',
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 3,
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    },
+                    '&.Mui-focused': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    }
+                  }
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search sx={{ color: 'text.secondary', fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Box>
+          </Paper>
+
           <Paper elevation={0} sx={{ borderRadius: 4, height: 'fit-content', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255, 255, 255, 0.2)' }}>
             <Box sx={{ p: 3, pb: 0 }}>
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 3, color: 'text.primary' }}>Match Locations</Typography>
             </Box>
             <Box sx={{ height: 500, width: '100%', borderRadius: 3, overflow: 'hidden', border: '1px solid rgba(0,0,0,0.1)' }}>
               <MapComponent />
+            </Box>
+          </Paper>
+          
+          {/* Popular Skills Section */}
+          <Paper elevation={0} sx={{ 
+            mt: 3, 
+            p: 3, 
+            borderRadius: 4, 
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)', 
+            background: 'rgba(255, 255, 255, 0.9)', 
+            backdropFilter: 'blur(20px)', 
+            border: '1px solid rgba(255, 255, 255, 0.2)' 
+          }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>Popular Skills</Typography>
+              <Button variant="outlined" size="small" startIcon={<TrendingUp />} sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 600, borderColor: 'primary.main', color: 'primary.main', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.08)', borderColor: 'primary.dark' } }}>View All</Button>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+              {popularSkills.map((skill, index) => (
+                <Grow key={skill} in={true} timeout={600 + index * 100}>
+                  <Chip 
+                    label={skill} 
+                    size="medium" 
+                    sx={{ 
+                      bgcolor: 'rgba(102, 126, 234, 0.1)', 
+                      color: 'primary.main', 
+                      fontWeight: 600, 
+                      fontSize: '0.875rem',
+                      px: 1,
+                      py: 2,
+                      '&:hover': { 
+                        bgcolor: 'rgba(102, 126, 234, 0.2)',
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)'
+                      },
+                      transition: 'all 0.2s ease-in-out'
+                    }} 
+                  />
+                </Grow>
+              ))}
             </Box>
           </Paper>
         </Box>
