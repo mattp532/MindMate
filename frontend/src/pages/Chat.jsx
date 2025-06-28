@@ -33,6 +33,7 @@ import {
   Schedule
 } from '@mui/icons-material';
 import { useSearchParams } from 'react-router-dom';
+import { useRef, useState } from 'react';
 
 const Chat = () => {
   const [message, setMessage] = React.useState("");
@@ -76,48 +77,26 @@ const Chat = () => {
     }
   ];
 
-  const messages = [
-    {
-      id: 1,
-      sender: "Sarah Johnson",
-      avatar: "SJ",
-      content: "Hi! I'm excited to learn React from you!",
-      time: "2:15 PM",
-      isOwn: false
-    },
-    {
-      id: 2,
-      sender: "You",
-      avatar: "ME",
-      content: "Hello Sarah! I'm glad to help you with React. What would you like to start with?",
-      time: "2:17 PM",
-      isOwn: true
-    },
-    {
-      id: 3,
-      sender: "Sarah Johnson",
-      avatar: "SJ",
-      content: "I've been trying to understand hooks, especially useState and useEffect. They're a bit confusing.",
-      time: "2:20 PM",
-      isOwn: false
-    },
-    {
-      id: 4,
-      sender: "You",
-      avatar: "ME",
-      content: "No worries! Hooks can be tricky at first. Let me explain them step by step. useState is for managing state in functional components...",
-      time: "2:25 PM",
-      isOwn: true
-    },
-    {
-      id: 5,
-      sender: "Sarah Johnson",
-      avatar: "SJ",
-      content: "Great! Let's schedule our next session.",
-      time: "2:30 PM",
-      isOwn: false
-    }
-  ];
+  const [messagesByChat, setMessagesByChat] = useState({
+    1: [
+      { id: 1, sender: "Sarah Johnson", avatar: "SJ", content: "Hi! I'm excited to learn React from you!", time: "2:15 PM", isOwn: false },
+      { id: 2, sender: "You", avatar: "ME", content: "Hello Sarah! I'm glad to help you with React. What would you like to start with?", time: "2:17 PM", isOwn: true },
+      { id: 3, sender: "Sarah Johnson", avatar: "SJ", content: "I've been trying to understand hooks, especially useState and useEffect. They're a bit confusing.", time: "2:20 PM", isOwn: false },
+      { id: 4, sender: "You", avatar: "ME", content: "No worries! Hooks can be tricky at first. Let me explain them step by step. useState is for managing state in functional components...", time: "2:25 PM", isOwn: true },
+      { id: 5, sender: "Sarah Johnson", avatar: "SJ", content: "Great! Let's schedule our next session.", time: "2:30 PM", isOwn: false }
+    ],
+    2: [
+      { id: 1, sender: "Mike Chen", avatar: "MC", content: "The Python concepts are clear now.", time: "1:15 PM", isOwn: false },
+      { id: 2, sender: "You", avatar: "ME", content: "Glad to hear! Do you want to try a coding challenge?", time: "1:16 PM", isOwn: true }
+    ],
+    3: [
+      { id: 1, sender: "Emma Davis", avatar: "ED", content: "Can you help me with React hooks?", time: "11:45 AM", isOwn: false }
+    ]
+  });
+  const [attachment, setAttachment] = useState(null);
+  const fileInputRef = useRef();
+  const messagesEndRef = useRef();
+  const [chatFadeKey, setChatFadeKey] = useState(0);
 
   React.useEffect(() => {
     if (userId) {
@@ -126,10 +105,37 @@ const Chat = () => {
     }
   }, [userId]);
 
+  // Fade transition when switching chats
+  React.useEffect(() => {
+    setChatFadeKey(prev => prev + 1);
+  }, [selectedChat]);
+
+  // Scroll to bottom on chat switch or new message
+  React.useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [selectedChat, messagesByChat]);
+
   const handleSendMessage = () => {
-    if (message.trim()) {
-      // TODO: Send message to backend
+    if (message.trim() || attachment) {
+      const chatId = chats[selectedChat].id;
+      const newMsg = {
+        id: (messagesByChat[chatId]?.length || 0) + 1,
+        sender: "You",
+        avatar: "ME",
+        content: message,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isOwn: true,
+        attachment: attachment ? { name: attachment.name, url: URL.createObjectURL(attachment), type: attachment.type } : null
+      };
+      setMessagesByChat(prev => ({
+        ...prev,
+        [chatId]: [...(prev[chatId] || []), newMsg]
+      }));
       setMessage("");
+      setAttachment(null);
+      if (fileInputRef.current) fileInputRef.current.value = null;
     }
   };
 
@@ -139,6 +145,18 @@ const Chat = () => {
       handleSendMessage();
     }
   };
+
+  const handleAttachClick = () => {
+    if (fileInputRef.current) fileInputRef.current.click();
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) setAttachment(file);
+  };
+
+  const chatId = chats[selectedChat]?.id;
+  const messages = messagesByChat[chatId] || [];
 
   return (
     <Box sx={{ 
@@ -424,81 +442,92 @@ const Chat = () => {
                 overflow: 'auto',
                 bgcolor: 'rgba(248, 250, 252, 0.5)'
               }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {messages.map((msg, index) => (
-                    <Grow key={msg.id} in={true} timeout={300 + index * 100}>
-                      <Box sx={{ 
-                        display: 'flex', 
-                        justifyContent: msg.isOwn ? 'flex-end' : 'flex-start',
-                        mb: 2
-                      }}>
+                <Fade key={chatFadeKey} in={true} timeout={900}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {messages.map((msg, index) => (
+                      <Grow key={msg.id} in={true} timeout={300 + index * 100}>
                         <Box sx={{ 
                           display: 'flex', 
-                          alignItems: 'flex-end',
-                          gap: 1,
-                          maxWidth: '70%'
+                          justifyContent: msg.isOwn ? 'flex-end' : 'flex-start',
+                          mb: 2
                         }}>
-                          {!msg.isOwn && (
-                            <Avatar 
-                              sx={{ 
-                                width: 32, 
-                                height: 32, 
-                                bgcolor: 'primary.main',
-                                fontSize: '0.9rem',
-                                fontWeight: 600
-                              }}
-                            >
-                              {msg.avatar}
-                            </Avatar>
-                          )}
-                          <Box>
-                            <Paper 
-                              elevation={0}
-                              sx={{ 
-                                p: 2,
-                                borderRadius: 3,
-                                bgcolor: msg.isOwn 
-                                  ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                                  : 'rgba(255, 255, 255, 0.9)',
-                                color: 'text.primary',
-                                boxShadow: msg.isOwn 
-                                  ? '0 4px 12px rgba(102, 126, 234, 0.3)'
-                                  : '0 2px 8px rgba(0,0,0,0.08)',
-                                border: msg.isOwn 
-                                  ? 'none'
-                                  : '1px solid rgba(255, 255, 255, 0.2)',
-                                backdropFilter: 'blur(10px)'
-                              }}
-                            >
-                              <Typography 
-                                variant="body1" 
+                          <Box sx={{ 
+                            display: 'flex', 
+                            alignItems: 'flex-end',
+                            gap: 1,
+                            maxWidth: '70%'
+                          }}>
+                            {!msg.isOwn && (
+                              <Avatar 
                                 sx={{ 
-                                  lineHeight: 1.5,
-                                  fontSize: '0.95rem',
-                                  fontWeight: msg.isOwn ? 500 : 400
+                                  width: 32, 
+                                  height: 32, 
+                                  bgcolor: 'primary.main',
+                                  fontSize: '0.9rem',
+                                  fontWeight: 600
                                 }}
                               >
-                                {msg.content}
+                                {msg.avatar}
+                              </Avatar>
+                            )}
+                            <Box>
+                              <Paper 
+                                elevation={0}
+                                sx={{ 
+                                  p: 2,
+                                  borderRadius: 3,
+                                  bgcolor: msg.isOwn 
+                                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                                    : 'rgba(255, 255, 255, 0.9)',
+                                  color: 'text.primary',
+                                  boxShadow: msg.isOwn 
+                                    ? '0 4px 12px rgba(102, 126, 234, 0.3)'
+                                    : '0 2px 8px rgba(0,0,0,0.08)',
+                                  border: msg.isOwn 
+                                    ? 'none'
+                                    : '1px solid rgba(255, 255, 255, 0.2)',
+                                  backdropFilter: 'blur(10px)'
+                                }}
+                              >
+                                <Typography 
+                                  variant="body1" 
+                                  sx={{ 
+                                    lineHeight: 1.5,
+                                    fontSize: '0.95rem',
+                                    fontWeight: msg.isOwn ? 500 : 400
+                                  }}
+                                >
+                                  {msg.content}
+                                </Typography>
+                              </Paper>
+                              {msg.attachment && (
+                                <Box sx={{ mt: 1 }}>
+                                  {msg.attachment.type.startsWith('image/') ? (
+                                    <img src={msg.attachment.url} alt={msg.attachment.name} style={{ maxWidth: 180, borderRadius: 8 }} />
+                                  ) : (
+                                    <a href={msg.attachment.url} target="_blank" rel="noopener noreferrer">{msg.attachment.name}</a>
+                                  )}
+                                </Box>
+                              )}
+                              <Typography 
+                                variant="caption" 
+                                sx={{ 
+                                  color: 'text.secondary',
+                                  fontSize: '0.75rem',
+                                  mt: 0.5,
+                                  display: 'block',
+                                  textAlign: msg.isOwn ? 'right' : 'left'
+                                }}
+                              >
+                                {msg.time}
                               </Typography>
-                            </Paper>
-                            <Typography 
-                              variant="caption" 
-                              sx={{ 
-                                color: 'text.secondary',
-                                fontSize: '0.75rem',
-                                mt: 0.5,
-                                display: 'block',
-                                textAlign: msg.isOwn ? 'right' : 'left'
-                              }}
-                            >
-                              {msg.time}
-                            </Typography>
+                            </Box>
                           </Box>
                         </Box>
-                      </Box>
-                    </Grow>
-                  ))}
-                </Box>
+                      </Grow>
+                    ))}
+                  </Box>
+                </Fade>
               </Box>
 
               {/* Message Input */}
@@ -515,15 +544,19 @@ const Chat = () => {
                   gap: 1
                 }}>
                   <IconButton 
-                    sx={{ 
-                      bgcolor: 'rgba(102, 126, 234, 0.08)',
-                      '&:hover': {
-                        bgcolor: 'rgba(102, 126, 234, 0.12)'
-                      }
-                    }}
+                    onClick={handleAttachClick}
+                    sx={{ bgcolor: 'rgba(102, 126, 234, 0.08)', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.12)' } }}
                   >
                     <AttachFile color="primary" />
+                    <input type="file" hidden ref={fileInputRef} onChange={handleFileChange} />
                   </IconButton>
+                  {attachment && (
+                    <Chip
+                      label={attachment.name}
+                      onDelete={() => setAttachment(null)}
+                      sx={{ ml: 1, maxWidth: 180 }}
+                    />
+                  )}
                   <TextField
                     fullWidth
                     multiline

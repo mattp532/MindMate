@@ -130,7 +130,7 @@ const Dashboard = () => {
   const torontoCoords = [43.6532, -79.3832];
 
   // Map component with proper error handling
-  const MapComponent = ({ selectedCoords }) => {
+  const MapComponent = ({ selectedCoords, matches }) => {
     React.useEffect(() => {
       setMapLoaded(true);
     }, []);
@@ -167,7 +167,7 @@ const Dashboard = () => {
             <Circle center={selectedCoords} radius={1609} color="purple" />
           </>
         )}
-        {mockMatches.map((match) => (
+        {matches.map((match) => (
           <Marker key={match.id} position={match.coordinates}>
             <Popup>
               <Box>
@@ -349,7 +349,7 @@ const Dashboard = () => {
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 3, color: 'text.primary' }}>Match Locations</Typography>
             </Box>
             <Box sx={{ height: 500, width: '100%', borderRadius: 3, overflow: 'hidden', border: '1px solid rgba(0,0,0,0.1)' }}>
-              <MapComponent selectedCoords={selectedCoords} />
+              <MapComponent selectedCoords={selectedCoords} matches={filteredMatches} />
             </Box>
           </Paper>
           

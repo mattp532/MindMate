@@ -223,7 +223,7 @@ const Profile = () => {
               </Box>
               <Button variant="outlined" startIcon={<Edit />} fullWidth sx={{ borderRadius: 2, py: 1.2, fontWeight: 'bold', textTransform: 'none', mt: 'auto', fontSize: { xs: '0.95rem', md: '1rem' } }} onClick={handleEditOpen}>Edit Profile</Button>
             </Paper>
-          </Box>
+                  </Box>
 
           {/* Skills Wizard */}
           <Box sx={{ minWidth: 350, maxWidth: 500, flex: '0 0 420px', display: 'flex', flexDirection: 'column' }}>
@@ -295,7 +295,7 @@ const Profile = () => {
                 </Button>
               )}
             </Paper>
-          </Box>
+                  </Box>
 
           {/* Teaching Statistics - fills remaining space */}
           <Box sx={{ flex: 1, minWidth: 260, display: 'flex', flexDirection: 'column' }}>
@@ -318,8 +318,8 @@ const Profile = () => {
                   <Typography variant="h3" color="primary" sx={{ fontWeight: 'bold', fontSize: { xs: '1.3rem', md: '2.2rem' }, mb: 0.5 }}>0%</Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold', fontSize: { xs: '0.9rem', md: '1rem' } }}>Success Rate</Typography>
                 </Box>
-              </Box>
-            </Paper>
+                  </Box>
+                </Paper>
           </Box>
         </Box>
 
@@ -341,15 +341,15 @@ const Profile = () => {
             <CheckCircle sx={{ color: 'success.main', fontSize: 48, mb: 2 }} />
             <Typography variant="h5" sx={{ fontWeight: 'bold', mt: 2 }}>
               Congratulations!
-            </Typography>
+                        </Typography>
           </DialogTitle>
           <DialogContent sx={{ textAlign: 'center', pb: 4 }}>
             <Typography variant="h6" sx={{ mb: 2 }}>
               Your skill <b>{lastVerifiedSkill?.name}</b> has been verified!
-            </Typography>
+                        </Typography>
             <Typography variant="body1" sx={{ mb: 3 }}>
               Score: <b>{lastVerifiedSkill?.score}</b>
-            </Typography>
+                        </Typography>
             <Button variant="contained" color="primary" onClick={() => setShowCongrats(false)} sx={{ borderRadius: 2, px: 4, py: 1.5, fontWeight: 'bold', textTransform: 'none', fontSize: '1.1rem' }}>
               Close
             </Button>
