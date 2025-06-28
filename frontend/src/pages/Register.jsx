@@ -21,7 +21,6 @@ import {
   Lock, 
   Person,
   Google, 
-  Facebook,
   Visibility,
   VisibilityOff,
   School,
@@ -430,35 +429,6 @@ const Register = () => {
                     }}
                   >
                     Google
-                  </Button>
-                </Grow>
-                <Grow in={true} timeout={2400}>
-                  <Button 
-                    variant="outlined" 
-                    fullWidth 
-                    startIcon={<Facebook />}
-                    disabled={loading}
-                    sx={{ 
-                      py: 1.5,
-                      borderRadius: 3,
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      fontSize: '1rem',
-                      borderColor: 'rgba(0,0,0,0.12)',
-                      color: 'text.primary',
-                      '&:hover': {
-                        borderColor: 'primary.main',
-                        bgcolor: 'rgba(102, 126, 234, 0.04)',
-                        transform: 'translateY(-1px)'
-                      },
-                      '&:disabled': {
-                        borderColor: 'rgba(0, 0, 0, 0.12)',
-                        color: 'rgba(0, 0, 0, 0.38)'
-                      },
-                      transition: 'all 0.2s ease-in-out'
-                    }}
-                  >
-                    Facebook
                   </Button>
                 </Grow>
               </Box>

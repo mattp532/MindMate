@@ -37,6 +37,7 @@ import {
 import HomePage from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
 import DashboardPage from './pages/Dashboard';
 import Profile from './pages/Profile';
 import ChatPage from './pages/Chat';
@@ -384,6 +385,7 @@ const AppContent = () => {
               <Route path="/" element={<HomePage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/dashboard" element={
                 <ProtectedRoute>
                   <DashboardPage />

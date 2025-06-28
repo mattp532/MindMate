@@ -5,6 +5,7 @@ import {
   signOut, 
   onAuthStateChanged,
   GoogleAuthProvider,
+  GithubAuthProvider,
   signInWithPopup,
   updateProfile,
   sendPasswordResetEmail
@@ -60,6 +61,17 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // GitHub sign in
+  async function signInWithGithub() {
+    const provider = new GithubAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // Reset password
   function resetPassword(email) {
     return sendPasswordResetEmail(auth, email);
@@ -85,6 +97,7 @@ export function AuthProvider({ children }) {
     login,
     logout,
     signInWithGoogle,
+    signInWithGithub,
     resetPassword,
     updateUserProfile
   };
