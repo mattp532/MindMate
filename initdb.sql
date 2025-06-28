@@ -1,6 +1,6 @@
--- Users with location info
+-- Users identified by Firebase UID
 CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
+  firebase_uid VARCHAR(128) PRIMARY KEY, -- Firebase UID is a string (~28 chars, so 128 is safe)
   name VARCHAR(100) NOT NULL,
   email VARCHAR(100) UNIQUE NOT NULL,
   bio TEXT,
@@ -19,32 +19,32 @@ CREATE TABLE skills (
 
 -- Skills user can teach
 CREATE TABLE user_teaches (
-  user_id INT REFERENCES users(id) ON DELETE CASCADE,
+  user_firebase_uid VARCHAR(128) REFERENCES users(firebase_uid) ON DELETE CASCADE,
   skill_id INT REFERENCES skills(id) ON DELETE CASCADE,
-  PRIMARY KEY (user_id, skill_id)
+  PRIMARY KEY (user_firebase_uid, skill_id)
 );
 
 -- Skills user wants to learn
 CREATE TABLE user_learns (
-  user_id INT REFERENCES users(id) ON DELETE CASCADE,
+  user_firebase_uid VARCHAR(128) REFERENCES users(firebase_uid) ON DELETE CASCADE,
   skill_id INT REFERENCES skills(id) ON DELETE CASCADE,
-  PRIMARY KEY (user_id, skill_id)
+  PRIMARY KEY (user_firebase_uid, skill_id)
 );
 
 -- Matches between users
 CREATE TABLE matches (
   id SERIAL PRIMARY KEY,
-  user1_id INT REFERENCES users(id) ON DELETE CASCADE,
-  user2_id INT REFERENCES users(id) ON DELETE CASCADE,
+  user1_firebase_uid VARCHAR(128) REFERENCES users(firebase_uid) ON DELETE CASCADE,
+  user2_firebase_uid VARCHAR(128) REFERENCES users(firebase_uid) ON DELETE CASCADE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT unique_match UNIQUE (user1_id, user2_id)
+  CONSTRAINT unique_match UNIQUE (user1_firebase_uid, user2_firebase_uid)
 );
 
 -- Messages between matched users
 CREATE TABLE messages (
   id SERIAL PRIMARY KEY,
   match_id INT REFERENCES matches(id) ON DELETE CASCADE,
-  sender_id INT REFERENCES users(id) ON DELETE CASCADE,
+  sender_firebase_uid VARCHAR(128) REFERENCES users(firebase_uid) ON DELETE CASCADE,
   content TEXT NOT NULL,
   sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -61,8 +61,8 @@ CREATE TABLE calls (
 -- Call participants
 CREATE TABLE call_participants (
   call_id INT REFERENCES calls(id) ON DELETE CASCADE,
-  user_id INT REFERENCES users(id) ON DELETE CASCADE,
+  user_firebase_uid VARCHAR(128) REFERENCES users(firebase_uid) ON DELETE CASCADE,
   joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   left_at TIMESTAMP,
-  PRIMARY KEY (call_id, user_id)
+  PRIMARY KEY (call_id, user_firebase_uid)
 );
