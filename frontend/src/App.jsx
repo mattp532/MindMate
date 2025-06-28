@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   AppBar, 
   Toolbar, 
@@ -32,7 +32,10 @@ import {
   Menu as MenuIcon,
   Close,
   Logout,
-  AccountCircle
+  AccountCircle,
+  Message,
+  CheckCircle,
+  Event
 } from '@mui/icons-material';
 import HomePage from './pages/Home';
 import Login from './pages/Login';
@@ -48,10 +51,19 @@ import ProtectedRoute from './components/ProtectedRoute';
 const Navigation = () => {
   const location = useLocation();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState(null);
   const { currentUser, logout } = useAuth();
+  const [notificationAnchor, setNotificationAnchor] = React.useState(null);
+  const navigate = useNavigate();
+  const [notifications, setNotifications] = React.useState([
+    { id: 1, type: 'message', text: 'You have a new message from Sarah Johnson', icon: <Message color="primary" />, read: false, link: '/chat?userId=1' },
+    { id: 2, type: 'verified', text: 'Your skill "React" was verified!', icon: <CheckCircle color="success" />, read: false, link: '/profile' },
+    { id: 3, type: 'session', text: 'Session scheduled with Mike Chen', icon: <Event color="secondary" />, read: false, link: '/dashboard' }
+  ]);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   const navItems = [
     { path: '/', label: 'Home', icon: <Home /> },
@@ -79,6 +91,13 @@ const Navigation = () => {
       console.error('Failed to log out:', error);
     }
   };
+
+  const handleNotificationClick = (event) => {
+    setNotificationAnchor(event.currentTarget);
+    // Mark all as read when opening
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+  const handleNotificationClose = () => setNotificationAnchor(null);
 
   const isActive = (path) => location.pathname === path;
 
@@ -110,6 +129,16 @@ const Navigation = () => {
           MindMate
         </Typography>
       </Box>
+      {isMobile && (
+        <Box sx={{ px: 3, py: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+          <IconButton onClick={handleNotificationClick} sx={{ bgcolor: 'rgba(102, 126, 234, 0.08)', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.12)' } }}>
+            <Badge badgeContent={unreadCount} color="error">
+              <Notifications color="primary" />
+            </Badge>
+          </IconButton>
+          <Typography variant="body1" sx={{ fontWeight: 600 }}>Notifications</Typography>
+        </Box>
+      )}
       <List>
         {navItems.map((item) => (
           <ListItem 
@@ -250,21 +279,13 @@ const Navigation = () => {
               alignItems: 'center', 
               gap: { xs: 1, md: 2 }
             }}>
-              <IconButton 
-                sx={{ 
-                  bgcolor: 'rgba(102, 126, 234, 0.08)',
-                  '&:hover': {
-                    bgcolor: 'rgba(102, 126, 234, 0.12)',
-                    transform: 'scale(1.05)'
-                  },
-                  transition: 'all 0.2s ease-in-out'
-                }}
-              >
-                <Badge badgeContent={3} color="error">
-                  <Notifications color="primary" />
-                </Badge>
-              </IconButton>
-              
+              {!isMobile && (
+                <IconButton onClick={handleNotificationClick} sx={{ bgcolor: 'rgba(102, 126, 234, 0.08)', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.12)', transform: 'scale(1.05)' }, transition: 'all 0.2s ease-in-out' }}>
+                  <Badge badgeContent={unreadCount} color="error">
+                    <Notifications color="primary" />
+                  </Badge>
+                </IconButton>
+              )}
               {currentUser ? (
                 <>
                   <Button 
@@ -367,6 +388,46 @@ const Navigation = () => {
       >
         {drawer}
       </Drawer>
+
+      <Menu
+        anchorEl={notificationAnchor}
+        open={Boolean(notificationAnchor)}
+        onClose={handleNotificationClose}
+        sx={{ '& .MuiPaper-root': {
+          borderRadius: 3,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          backdropFilter: 'blur(20px)',
+          width: isMobile ? '100vw' : 'auto',
+          maxWidth: isMobile ? '100vw' : 360,
+          left: isMobile ? '0 !important' : undefined,
+          right: isMobile ? '0 !important' : undefined,
+          top: isMobile ? 'unset !important' : undefined,
+          bottom: isMobile ? '0 !important' : undefined,
+        }}}
+        anchorOrigin={isMobile ? { vertical: 'bottom', horizontal: 'center' } : { vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={isMobile ? { vertical: 'bottom', horizontal: 'center' } : { vertical: 'top', horizontal: 'right' }}
+        PaperProps={{ sx: { width: isMobile ? '100vw' : 360, maxWidth: '100vw' } }}
+      >
+        {notifications.length === 0 ? (
+          <MenuItem disabled>No notifications</MenuItem>
+        ) : (
+          notifications.map(n => (
+            <MenuItem
+              key={n.id}
+              sx={{ gap: 1, opacity: n.read ? 0.6 : 1 }}
+              onClick={() => {
+                handleNotificationClose();
+                if (n.link) navigate(n.link);
+              }}
+              button
+            >
+              <ListItemIcon>{n.icon}</ListItemIcon>
+              <ListItemText primary={n.text} />
+            </MenuItem>
+          ))
+        )}
+      </Menu>
     </>
   );
 };

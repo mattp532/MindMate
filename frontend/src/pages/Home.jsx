@@ -62,6 +62,9 @@ const Home = () => {
     { number: "95%", label: "Success Rate", icon: <TrendingUp /> }
   ];
 
+  const BOX_WIDTH = 480;
+  const BOX_HEIGHT = 260;
+
   return (
     <Box sx={{ 
       minHeight: '100vh',

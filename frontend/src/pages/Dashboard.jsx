@@ -40,10 +40,11 @@ import {
   OnlinePrediction,
   Schedule
 } from '@mui/icons-material';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
 // Fix for default markers in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -53,11 +54,24 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
+const MapUpdater = ({ coords }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (coords) {
+      map.flyTo(coords, 13); // zoom to 13 for a wider view
+    }
+  }, [coords, map]);
+  return null;
+};
+
 const Dashboard = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [tabValue, setTabValue] = React.useState(0);
   const [mapLoaded, setMapLoaded] = React.useState(false);
+  const [selectedCoords, setSelectedCoords] = React.useState(null);
+  const [selectedUserId, setSelectedUserId] = React.useState(null);
+  const [searchSkill, setSearchSkill] = React.useState("");
   const navigate = useNavigate();
 
   // Mock data for demonstration
@@ -116,7 +130,7 @@ const Dashboard = () => {
   const torontoCoords = [43.6532, -79.3832];
 
   // Map component with proper error handling
-  const MapComponent = () => {
+  const MapComponent = ({ selectedCoords, matches }) => {
     React.useEffect(() => {
       setMapLoaded(true);
     }, []);
@@ -138,7 +152,7 @@ const Dashboard = () => {
 
     return (
       <MapContainer 
-        center={torontoCoords} 
+        center={selectedCoords || torontoCoords} 
         zoom={10} 
         style={{ height: '100%', width: '100%' }}
         key={mapLoaded ? 'loaded' : 'loading'}
@@ -147,7 +161,13 @@ const Dashboard = () => {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" 
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' 
         />
-        {mockMatches.map((match) => (
+        {selectedCoords && (
+          <>
+            <MapUpdater coords={selectedCoords} />
+            <Circle center={selectedCoords} radius={1609} color="purple" />
+          </>
+        )}
+        {matches.map((match) => (
           <Marker key={match.id} position={match.coordinates}>
             <Popup>
               <Box>
@@ -164,6 +184,15 @@ const Dashboard = () => {
       </MapContainer>
     );
   };
+
+  // Filter matches by skill
+  const filteredMatches = searchSkill.trim() === ""
+    ? mockMatches
+    : mockMatches.filter(match =>
+        match.skills.some(skill =>
+          skill.toLowerCase().includes(searchSkill.trim().toLowerCase())
+        )
+      );
 
   return (
     <Box sx={{ 
@@ -226,9 +255,12 @@ const Dashboard = () => {
               <Button variant="outlined" size="small" startIcon={<FilterList />} sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 600, borderColor: 'primary.main', color: 'primary.main', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.08)', borderColor: 'primary.dark' } }}>Filter</Button>
             </Box>
             <List sx={{ p: 0 }}>
-              {mockMatches.map((match, index) => (
+              {filteredMatches.map((match, index) => (
                 <Grow key={match.id} in={true} timeout={800 + index * 200}>
-                  <ListItem sx={{ px: 0, py: 1 }}>
+                  <ListItem 
+                    sx={{ px: 0, py: 1, cursor: 'pointer', bgcolor: selectedUserId === match.id ? 'rgba(102, 126, 234, 0.08)' : 'inherit' }}
+                    onClick={() => { setSelectedCoords(match.coordinates); setSelectedUserId(match.id); }}
+                  >
                     <ListItemButton sx={{ borderRadius: 3, mb: 2, p: 3, transition: 'all 0.3s ease-in-out', border: '1px solid rgba(0,0,0,0.06)', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.04)', transform: 'translateY(-2px)', boxShadow: '0 8px 25px rgba(0,0,0,0.1)', borderColor: 'primary.main' } }}>
                       <ListItemAvatar>
                         <Badge overlap="circular" anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} badgeContent={<Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: match.isOnline ? 'success.main' : 'grey.400', border: '3px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }} />}> <Avatar sx={{ width: 64, height: 64, bgcolor: 'primary.main', fontSize: '1.5rem', fontWeight: 700, boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)' }}>{match.avatar}</Avatar> </Badge>
@@ -240,16 +272,29 @@ const Dashboard = () => {
                           size="small" 
                           startIcon={<Message />} 
                           sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)', '&:hover': { boxShadow: '0 6px 16px rgba(102, 126, 234, 0.4)', transform: 'translateY(-1px)' } }}
-                          onClick={() => navigate(`/chat?userId=${match.id}`)}
+                          onClick={e => { e.stopPropagation(); navigate(`/chat?userId=${match.id}`); }}
                         >
                           Message
                         </Button>
-                        <Button variant="outlined" size="small" startIcon={<VideoCall />} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, borderColor: 'primary.main', color: 'primary.main', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.08)', borderColor: 'primary.dark' } }}>Call</Button>
+                        <Button 
+                          variant="outlined" 
+                          size="small" 
+                          startIcon={<VideoCall />} 
+                          sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, borderColor: 'primary.main', color: 'primary.main', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.08)', borderColor: 'primary.dark' } }}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          Call
+                        </Button>
                       </Box>
                     </ListItemButton>
                   </ListItem>
                 </Grow>
               ))}
+              {filteredMatches.length === 0 && (
+                <Typography sx={{ p: 3, textAlign: 'center', color: 'text.secondary', fontWeight: 600 }}>
+                  No matches found for that skill.
+                </Typography>
+              )}
             </List>
           </Paper>
         </Box>
@@ -273,6 +318,8 @@ const Dashboard = () => {
               <TextField
                 placeholder="Search for skills..."
                 size="small"
+                value={searchSkill}
+                onChange={e => setSearchSkill(e.target.value)}
                 sx={{
                   width: 'calc(100% - 180px)',
                   '& .MuiOutlinedInput-root': {
@@ -302,7 +349,7 @@ const Dashboard = () => {
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 3, color: 'text.primary' }}>Match Locations</Typography>
             </Box>
             <Box sx={{ height: 500, width: '100%', borderRadius: 3, overflow: 'hidden', border: '1px solid rgba(0,0,0,0.1)' }}>
-              <MapComponent />
+              <MapComponent selectedCoords={selectedCoords} matches={filteredMatches} />
             </Box>
           </Paper>
           
