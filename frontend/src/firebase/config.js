@@ -3,15 +3,15 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 // Your Firebase configuration
-// Replace these values with your actual Firebase project configuration
+// Using environment variables for security
 const firebaseConfig = {
-    apiKey: "AIzaSyBK-fxWKIMbQ0M97YDs_TdnsopqZmZQSfg",
-    authDomain: "mindmate-a2bd4.firebaseapp.com",
-    projectId: "mindmate-a2bd4",
-    storageBucket: "mindmate-a2bd4.firebasestorage.app",
-    messagingSenderId: "841505290492",
-    appId: "1:841505290492:web:371cf7ec58da2580383f79",
-    measurementId: "G-MVMJ7E4D8R"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase

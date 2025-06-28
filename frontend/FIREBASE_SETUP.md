@@ -36,8 +36,13 @@ This guide will help you set up Firebase Authentication for the MindMate project
 
 ## Step 4: Update Firebase Configuration
 
-1. Open `src/firebase/config.js`
-2. Replace the placeholder configuration with your actual Firebase config:
+1. **Copy the template file:**
+   ```bash
+   cp src/firebase/config.template.js src/firebase/config.js
+   ```
+
+2. Open `src/firebase/config.js`
+3. Replace the placeholder configuration with your actual Firebase config:
 
 ```javascript
 const firebaseConfig = {
@@ -80,6 +85,24 @@ service cloud.firestore {
 3. Test the login functionality
 4. Verify that Google sign-in works
 
+## Security Notes
+
+### Gitignore Configuration
+
+The following files are automatically ignored by git to keep your credentials secure:
+
+- `src/firebase/config.js` - Your actual Firebase configuration
+- `.env*` files - Environment variables
+- Firebase cache files
+
+### Template File
+
+A template file (`src/firebase/config.template.js`) is provided as a reference. You should:
+
+1. Copy the template to create your actual config file
+2. Never commit the actual config file with real credentials
+3. Share the template file with other developers
+
 ## Features Included
 
 The Firebase setup includes:
@@ -93,6 +116,7 @@ The Firebase setup includes:
 - ✅ **Error Handling**
 - ✅ **Loading States**
 - ✅ **Automatic Redirects**
+- ✅ **Secure Configuration Management**
 
 ## Security Best Practices
 
@@ -100,6 +124,7 @@ The Firebase setup includes:
 2. **Domain Restrictions**: Configure authorized domains in Firebase console
 3. **Password Requirements**: Firebase handles password strength validation
 4. **Rate Limiting**: Firebase provides built-in rate limiting
+5. **Gitignore**: Configuration files are automatically excluded from version control
 
 ## Environment Variables (Production)
 
@@ -146,6 +171,10 @@ const firebaseConfig = {
 4. **CORS errors**
    - Add your domain to authorized domains in Firebase console
 
+5. **Configuration file not found**
+   - Make sure you've copied the template file to `src/firebase/config.js`
+   - Check that the file path is correct
+
 ## Additional Features to Consider
 
 - Password reset functionality
@@ -163,6 +192,7 @@ If you encounter any issues:
 2. Review the browser console for JavaScript errors
 3. Verify your Firebase configuration is correct
 4. Ensure all required providers are enabled
+5. Make sure your config file is properly set up
 
 ## Next Steps
 
