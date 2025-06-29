@@ -136,8 +136,8 @@ io.on('connection', (socket) => {
   socket.on('send_message', (data) => {
     const { matchId, message, senderId } = data;
     
-    // Broadcast message to all users in the chat room
-    io.to(`chat_${matchId}`).emit('new_message', {
+    // Broadcast message to all users in the chat room EXCEPT the sender
+    socket.to(`chat_${matchId}`).emit('new_message', {
       matchId,
       message,
       senderId,
