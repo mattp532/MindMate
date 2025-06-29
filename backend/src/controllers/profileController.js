@@ -12,11 +12,16 @@ exports.getProfile = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
+    console.log('Profile update request for user:', req.user.uid);
+    console.log('Profile data received:', req.body);
+    
     const updatedUser = await profileService.updateProfile(req.user.uid, req.body);
     res.status(200).json(updatedUser);
     console.log("updated user profile succesfully")
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update profile' });
+    console.error('Profile update error details:', err);
+    console.error('Error stack:', err.stack);
+    res.status(500).json({ error: 'Failed to update profile', details: err.message });
   }
 };
 

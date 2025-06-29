@@ -29,10 +29,14 @@ import {
   Lightbulb,
   Group
 } from '@mui/icons-material';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const Home = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
 
   const features = [
     {
@@ -150,57 +154,101 @@ const Home = () => {
                     flexDirection: { xs: 'column', sm: 'row' },
                     justifyContent: { xs: 'center', md: 'flex-start' }
                   }}>
-                    <Grow in={true} timeout={1000}>
-                      <Button 
-                        variant="contained" 
-                        size="large" 
-                        href="/register"
-                        endIcon={<ArrowForward />}
-                        sx={{ 
-                          bgcolor: 'white', 
-                          color: '#667eea',
-                          px: 4,
-                          py: 2,
-                          fontSize: '1.1rem',
-                          fontWeight: 700,
-                          borderRadius: 3,
-                          boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-                          '&:hover': { 
-                            bgcolor: '#f8f9fa',
-                            transform: 'translateY(-2px)',
-                            boxShadow: '0 12px 40px rgba(0,0,0,0.3)'
-                          },
-                          transition: 'all 0.3s ease-in-out'
-                        }}
-                      >
-                        Get Started
-                      </Button>
-                    </Grow>
-                    <Grow in={true} timeout={1200}>
-                      <Button 
-                        variant="outlined" 
-                        size="large"
-                        href="/dashboard"
-                        sx={{ 
-                          borderColor: 'rgba(255,255,255,0.5)', 
-                          color: 'white',
-                          px: 4,
-                          py: 2,
-                          fontSize: '1.1rem',
-                          fontWeight: 600,
-                          borderRadius: 3,
-                          borderWidth: 2,
-                          '&:hover': { 
-                            borderColor: 'white', 
-                            bgcolor: 'rgba(255,255,255,0.1)',
-                            transform: 'translateY(-2px)'
-                          },
-                          transition: 'all 0.3s ease-in-out'
-                        }}
-                      >
-                        Explore Skills
-                      </Button>
-                    </Grow>
+                    {currentUser ? (
+                      <Grow in={true} timeout={1000}>
+                        <Button 
+                          variant="contained" 
+                          size="large" 
+                          onClick={() => navigate('/dashboard')}
+                          endIcon={<TrendingUp />}
+                          sx={{ 
+                            bgcolor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            color: 'white',
+                            px: 5,
+                            py: 2.5,
+                            fontSize: '1.2rem',
+                            fontWeight: 800,
+                            borderRadius: 4,
+                            boxShadow: '0 8px 32px rgba(102,126,234,0.18)',
+                            letterSpacing: 1,
+                            textTransform: 'uppercase',
+                            transition: 'all 0.3s cubic-bezier(.4,2,.6,1)',
+                            '&:hover': { 
+                              bgcolor: 'white',
+                              color: '#667eea',
+                              boxShadow: '0 12px 40px rgba(102,126,234,0.28)',
+                              transform: 'translateY(-2px) scale(1.03)',
+                              transition: 'all 0.3s cubic-bezier(.4,2,.6,1)'
+                            },
+                            '& .MuiButton-endIcon': {
+                              transition: 'color 0.3s cubic-bezier(.4,2,.6,1)',
+                            },
+                            '&:hover .MuiButton-endIcon': {
+                              color: '#667eea',
+                            }
+                          }}
+                        >
+                          Explore Trending Skills
+                        </Button>
+                      </Grow>
+                    ) : (
+                      <>
+                        <Grow in={true} timeout={1000}>
+                          <Button 
+                            variant="contained" 
+                            size="large" 
+                            onClick={() => navigate('/register')}
+                            endIcon={<ArrowForward />}
+                            sx={{ 
+                              bgcolor: 'white', 
+                              color: '#667eea',
+                              px: 4,
+                              py: 2,
+                              fontSize: '1.1rem',
+                              fontWeight: 700,
+                              borderRadius: 3,
+                              boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+                              '&:hover': { 
+                                bgcolor: '#f8f9fa',
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 12px 40px rgba(0,0,0,0.3)'
+                              },
+                              transition: 'all 0.3s ease-in-out'
+                            }}
+                          >
+                            Get Started
+                          </Button>
+                        </Grow>
+                        <Grow in={true} timeout={1200}>
+                          <Button 
+                            variant="outlined" 
+                            size="large"
+                            onClick={() => navigate('/dashboard')}
+                            sx={{ 
+                              borderColor: 'rgba(255,255,255,0.5)', 
+                              color: 'white',
+                              px: 4,
+                              py: 2,
+                              fontSize: '1.1rem',
+                              fontWeight: 600,
+                              borderRadius: 3,
+                              borderWidth: 2,
+                              transition: 'all 0.3s cubic-bezier(.4,2,.6,1)',
+                              '&:hover': { 
+                                bgcolor: 'white',
+                                color: '#667eea',
+                                borderColor: '#667eea',
+                                boxShadow: '0 12px 40px rgba(102,126,234,0.18)',
+                                transform: 'translateY(-2px)',
+                                transition: 'all 0.3s cubic-bezier(.4,2,.6,1)'
+                              },
+                            }}
+                          >
+                            Explore Skills
+                          </Button>
+                        </Grow>
+                      </>
+                    )}
                   </Box>
                 </Box>
               </Fade>

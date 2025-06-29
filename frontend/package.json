@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "lsof -ti:5173 | xargs kill -9 || true",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
@@ -23,7 +24,7 @@
     "react-hook-form": "^7.59.0",
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.6.3",
-    "socket.io-client": "^4.8.1",
+    "socket.io-client": "^4.7.4",
     "yup": "^1.6.1"
   },
   "devDependencies": {

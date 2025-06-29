@@ -40,6 +40,9 @@ exports.getProfile = async (firebaseUid) => {
 };
 
 exports.updateProfile = async (firebaseUid, profileData) => {
+  console.log('updateProfile called with firebaseUid:', firebaseUid);
+  console.log('profileData:', profileData);
+  
   const { 
     fullName, 
     bio, 
@@ -48,22 +51,63 @@ exports.updateProfile = async (firebaseUid, profileData) => {
     interests
   } = profileData;
   
+  // Parse location string into city and country
+  let city = null;
+  let country = null;
+  if (location) {
+    const locationParts = location.split(',').map(part => part.trim());
+    if (locationParts.length >= 2) {
+      city = locationParts[0];
+      country = locationParts[1];
+    } else if (locationParts.length === 1) {
+      city = locationParts[0];
+    }
+  }
+  
+  console.log('Parsed location - city:', city, 'country:', country);
+  
   // Start a transaction
   const client = await pool.connect();
   
   try {
+    console.log('Starting database transaction...');
     await client.query('BEGIN');
     
+    // First, check if user exists
+    console.log('Checking if user exists in database...');
+    const userCheckRes = await client.query(
+      'SELECT firebase_uid FROM users WHERE firebase_uid = $1',
+      [firebaseUid]
+    );
+    
+    console.log('User check result:', userCheckRes.rows);
+    
+    if (userCheckRes.rows.length === 0) {
+      // User doesn't exist, create them automatically
+      console.log('User not found in database, creating new user...');
+      const createUserRes = await client.query(
+        `INSERT INTO users (firebase_uid, display_name, email, bio, city, country, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())
+         RETURNING *`,
+        [firebaseUid, fullName || 'User', null, null, null, null]
+      );
+      console.log('User created automatically:', createUserRes.rows[0]);
+    }
+    
     // Update basic user information
+    console.log('Updating user information...');
     const userRes = await client.query(
       `UPDATE users SET 
         name = $1, 
         bio = $2, 
-        city = $3
-       WHERE firebase_uid = $4 
+        city = $3,
+        country = $4
+       WHERE firebase_uid = $5 
        RETURNING firebase_uid, email, name, bio, city, country, user_type, hourly_rate`,
-      [fullName, bio, location, firebaseUid]
+      [fullName, bio, city, country, firebaseUid]
     );
+    
+    console.log('User update result:', userRes.rows);
     
     if (userRes.rows.length === 0) {
       throw new Error('User not found');
@@ -71,6 +115,7 @@ exports.updateProfile = async (firebaseUid, profileData) => {
     
     // Handle skills (save as unverified initially)
     if (skills && skills.length > 0) {
+      console.log('Processing skills:', skills);
       for (const skillName of skills) {
         // Insert skill if it doesn't exist
         let skillRes = await client.query(
@@ -97,6 +142,7 @@ exports.updateProfile = async (firebaseUid, profileData) => {
     
     // Handle interests
     if (interests && interests.length > 0) {
+      console.log('Processing interests:', interests);
       // Clear existing interests for this user
       await client.query('DELETE FROM user_interests WHERE user_firebase_uid = $1', [firebaseUid]);
       
@@ -123,11 +169,13 @@ exports.updateProfile = async (firebaseUid, profileData) => {
       }
     }
     
+    console.log('Committing transaction...');
     await client.query('COMMIT');
     
     return userRes.rows[0];
     
   } catch (error) {
+    console.error('Error in updateProfile:', error);
     await client.query('ROLLBACK');
     throw error;
   } finally {
