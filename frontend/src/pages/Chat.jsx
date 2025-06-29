@@ -31,7 +31,8 @@ import {
   SpeedDialAction,
   SpeedDialIcon,
   Tooltip,
-  Fab
+  Fab,
+  Popover
 } from '@mui/material';
 import { 
   Send, 
@@ -50,7 +51,6 @@ import {
   ThumbDown,
   Favorite,
   Share,
-  Download,
   Delete,
   Edit,
   Reply,
@@ -62,10 +62,14 @@ import {
   AudioFile,
   Close,
   CheckCircle,
-  Warning
+  Warning,
+  ContentCopy,
+  Download as DownloadIcon
 } from '@mui/icons-material';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useRef, useState } from 'react';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import dayjs from 'dayjs';
 
 const Chat = () => {
   const [message, setMessage] = React.useState("");
@@ -86,6 +90,14 @@ const Chat = () => {
   const [replyToMessage, setReplyToMessage] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [moreMenuAnchor, setMoreMenuAnchor] = useState(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [shareOpen, setShareOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [reactionMsgId, setReactionMsgId] = useState(null);
+  const [hoveredMsgId, setHoveredMsgId] = useState(null);
 
   // Mock data for demonstration
   const chats = [
@@ -153,7 +165,7 @@ const Chat = () => {
   ];
 
   // Emoji reactions
-  const emojiReactions = ['👍', '❤️', '😊', '🎉', '👏', '🔥', '💯', '🤔'];
+  const emojiList = ['👍', '❤️', '😂', '🎉', '😮', '🙏'];
 
   React.useEffect(() => {
     if (userId) {
@@ -173,6 +185,29 @@ const Chat = () => {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [selectedChat, messagesByChat]);
+
+  React.useEffect(() => {
+    if (selectedChat !== null && chats[selectedChat]) {
+      const chatId = chats[selectedChat].id;
+      const key = `chat_messages_${chatId}`;
+      const stored = JSON.parse(localStorage.getItem(key) || '[]');
+      if (stored.length > 0) {
+        setMessagesByChat(prev => {
+          const current = prev[chatId] || [];
+          // Avoid duplicates by checking content and time
+          const merged = [...current];
+          stored.forEach(msg => {
+            if (!current.some(m => m.content === msg.content && m.time === msg.time && m.sender === msg.sender)) {
+              merged.push(msg);
+            }
+          });
+          return { ...prev, [chatId]: merged };
+        });
+        // Clear after loading so it doesn't re-add
+        localStorage.removeItem(key);
+      }
+    }
+  }, [selectedChat, chats]);
 
   const handleSendMessage = () => {
     if (message.trim() || attachment) {
@@ -283,12 +318,89 @@ const Chat = () => {
   const chatId = chats[selectedChat]?.id;
   const messages = messagesByChat[chatId] || [];
 
-  // Add this function to generate a unique room ID
+  // Filtered and highlighted messages for search
+  const filteredMessages = searchTerm
+    ? messages.filter(msg => msg.content.toLowerCase().includes(searchTerm.toLowerCase()))
+    : messages;
+
+  const highlightText = (text, highlight) => {
+    if (!highlight) return text;
+    const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
+    return parts.map((part, i) =>
+      part.toLowerCase() === highlight.toLowerCase() ? <span key={i} style={{ background: '#ffe082', borderRadius: 3 }}>{part}</span> : part
+    );
+  };
+
+  const handleCopyChat = () => {
+    const chatText = messages.map(msg => `${msg.sender}: ${msg.content}`).join('\n');
+    navigator.clipboard.writeText(chatText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadChat = () => {
+    const chatText = messages.map(msg => `${msg.sender}: ${msg.content}`).join('\n');
+    const blob = new Blob([chatText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${chats[selectedChat]?.name || 'chat'}-MindMate.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Add a helper to send a system message
+  const sendSystemMessage = (content) => {
+    const chatId = chats[selectedChat].id;
+    const newMsg = {
+      id: (messagesByChat[chatId]?.length || 0) + 1,
+      sender: "System",
+      avatar: "",
+      content,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isOwn: false,
+      system: true
+    };
+    setMessagesByChat(prev => ({
+      ...prev,
+      [chatId]: [...(prev[chatId] || []), newMsg]
+    }));
+  };
+
+  // In startVideoCall, before navigating, send a system message
   const startVideoCall = () => {
     const roomId = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     const remoteName = chats[selectedChat]?.name || "User";
     const chatId = chats[selectedChat]?.id;
+    sendSystemMessage(`Video call started with ${remoteName} at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
     navigate(`/video-call/${roomId}`, { state: { remoteName, chatId } });
+  };
+
+  const handleEmojiClick = (event, msgId) => {
+    setAnchorEl(event.currentTarget);
+    setReactionMsgId(msgId);
+  };
+
+  const handleEmojiSelect = (emoji) => {
+    setMessageReactions(prev => {
+      const prevReactions = prev[reactionMsgId] || [];
+      // If emoji already exists, increment count, else add
+      const found = prevReactions.find(r => r.emoji === emoji);
+      let newReactions;
+      if (found) {
+        newReactions = prevReactions.map(r => r.emoji === emoji ? { ...r, count: r.count + 1 } : r);
+      } else {
+        newReactions = [...prevReactions, { emoji, count: 1 }];
+      }
+      return { ...prev, [reactionMsgId]: newReactions };
+    });
+    setAnchorEl(null);
+    setReactionMsgId(null);
+  };
+
+  const handleEmojiPopoverClose = () => {
+    setAnchorEl(null);
+    setReactionMsgId(null);
   };
 
   return (
@@ -573,172 +685,111 @@ const Chat = () => {
               }}>
                 <Fade key={chatFadeKey} in={true} timeout={900}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {messages.map((msg, index) => (
+                    {filteredMessages.map((msg, index) => (
                       <Grow key={msg.id} in={true} timeout={300 + index * 100}>
-                        <Box sx={{ 
-                          display: 'flex', 
-                          justifyContent: msg.isOwn ? 'flex-end' : 'flex-start',
-                          mb: 2
-                        }}>
-                          <Box sx={{ 
-                            display: 'flex', 
-                            alignItems: 'flex-end',
-                            gap: 1,
-                            maxWidth: '70%'
-                          }}>
-                            {!msg.isOwn && (
-                              <Avatar 
-                                sx={{ 
-                                  width: 32, 
-                                  height: 32, 
-                                  bgcolor: 'primary.main',
-                                  fontSize: '0.9rem',
-                                  fontWeight: 600
-                                }}
-                              >
-                                {msg.avatar}
-                              </Avatar>
-                            )}
-                            <Box>
-                              {/* Reply to message */}
-                              {msg.replyTo && (
-                                <Box sx={{ 
-                                  mb: 1, 
-                                  p: 1, 
-                                  bgcolor: 'rgba(0,0,0,0.05)', 
-                                  borderRadius: 1,
-                                  borderLeft: '3px solid primary.main'
-                                }}>
-                                  <Typography variant="caption" color="text.secondary">
-                                    Replying to: {msg.replyTo.content.substring(0, 30)}...
-                                  </Typography>
-                                </Box>
-                              )}
-                              
-                              <Paper 
-                                elevation={0}
-                                sx={{ 
-                                  p: 2,
-                                  borderRadius: 3,
-                                  bgcolor: msg.isOwn 
-                                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                                    : 'rgba(255, 255, 255, 0.9)',
-                                  color: 'text.primary',
-                                  boxShadow: msg.isOwn 
-                                    ? '0 4px 12px rgba(102, 126, 234, 0.3)'
-                                    : '0 2px 8px rgba(0,0,0,0.08)',
-                                  border: msg.isOwn 
-                                    ? 'none'
-                                    : '1px solid rgba(255, 255, 255, 0.2)',
-                                  backdropFilter: 'blur(10px)',
-                                  position: 'relative',
-                                  '&:hover .message-actions': {
-                                    opacity: 1
-                                  }
-                                }}
-                              >
-                                <Typography 
-                                  variant="body1" 
-                                  sx={{ 
-                                    lineHeight: 1.5,
-                                    fontSize: '0.95rem',
-                                    fontWeight: msg.isOwn ? 500 : 400
-                                  }}
-                                >
-                                  {msg.content}
-                                </Typography>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            justifyContent: msg.system ? 'center' : (msg.isOwn ? 'flex-end' : 'flex-start'),
+                            mb: 2,
+                            alignItems: 'center',
+                            position: 'relative'
+                          }}
+                          onMouseEnter={() => setHoveredMsgId(msg.id)}
+                          onMouseLeave={() => setHoveredMsgId(null)}
+                        >
+                          {msg.system ? (
+                            <Typography variant="caption" sx={{
+                              bgcolor: 'rgba(102,126,234,0.08)',
+                              color: 'primary.main',
+                              px: 2,
+                              py: 0.5,
+                              borderRadius: 2,
+                              fontSize: '0.85rem',
+                              textAlign: 'center',
+                              display: 'inline-block',
+                              fontStyle: 'italic',
+                              maxWidth: '80%'
+                            }}>
+                              {msg.content}
+                            </Typography>
+                          ) : (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              {/* Message bubble and actions */}
+                              <Box sx={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                                {/* Reply to message */}
+                                {msg.replyTo && (
+                                  <Box sx={{ 
+                                    mb: 1, 
+                                    p: 1, 
+                                    bgcolor: 'rgba(0,0,0,0.05)', 
+                                    borderRadius: 1,
+                                    borderLeft: '3px solid primary.main'
+                                  }}>
+                                    <Typography variant="caption" color="text.secondary">
+                                      Replying to: {msg.replyTo.content.substring(0, 30)}...
+                                    </Typography>
+                                  </Box>
+                                )}
                                 
-                                {/* Message actions (appear on hover) */}
-                                <Box 
-                                  className="message-actions"
+                                <Paper 
+                                  elevation={0}
                                   sx={{ 
-                                    position: 'absolute',
-                                    top: -10,
-                                    right: msg.isOwn ? -10 : 'auto',
-                                    left: msg.isOwn ? 'auto' : -10,
-                                    opacity: 0,
-                                    transition: 'opacity 0.2s ease-in-out',
-                                    display: 'flex',
-                                    gap: 0.5,
-                                    bgcolor: 'rgba(255, 255, 255, 0.9)',
-                                    borderRadius: 2,
-                                    p: 0.5,
-                                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                                    p: 2,
+                                    borderRadius: 3,
+                                    bgcolor: msg.isOwn 
+                                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                                      : 'rgba(255, 255, 255, 0.9)',
+                                    color: 'text.primary',
+                                    boxShadow: msg.isOwn 
+                                      ? '0 4px 12px rgba(102, 126, 234, 0.3)'
+                                      : '0 2px 8px rgba(0,0,0,0.08)',
+                                    border: msg.isOwn 
+                                      ? 'none'
+                                      : '1px solid rgba(255, 255, 255, 0.2)',
+                                    backdropFilter: 'blur(10px)',
+                                    position: 'relative',
+                                    '&:hover .message-actions': {
+                                      opacity: 1
+                                    }
                                   }}
                                 >
-                                  <Tooltip title="Reply">
-                                    <IconButton size="small" onClick={() => handleReply(msg)}>
-                                      <Reply fontSize="small" />
-                                    </IconButton>
-                                  </Tooltip>
-                                  <Tooltip title="React">
-                                    <IconButton size="small">
-                                      <EmojiEmotions fontSize="small" />
-                                    </IconButton>
-                                  </Tooltip>
-                                  {msg.attachment && (
-                                    <Tooltip title="Download">
-                                      <IconButton size="small">
-                                        <Download fontSize="small" />
+                                  <Typography 
+                                    variant="body1" 
+                                    sx={{ 
+                                      lineHeight: 1.5,
+                                      fontSize: '0.95rem',
+                                      fontWeight: msg.isOwn ? 500 : 400
+                                    }}
+                                  >
+                                    {highlightText(msg.content, searchTerm)}
+                                  </Typography>
+                                  
+                                  {/* Overlayed action row on message bubble, only for other user's messages on hover */}
+                                  {!msg.isOwn && hoveredMsgId === msg.id && (
+                                    <Box sx={{ position: 'absolute', bottom: 4, right: 8, display: 'flex', gap: 0.5, zIndex: 2, bgcolor: 'rgba(255,255,255,0.85)', borderRadius: 2, boxShadow: 1, p: 0.2 }}>
+                                      <IconButton size="small" onClick={() => handleReply(msg)}>
+                                        <Reply fontSize="small" />
                                       </IconButton>
-                                    </Tooltip>
+                                      <IconButton size="small" onClick={e => handleEmojiClick(e, msg.id)}>
+                                        <EmojiEmotions fontSize="small" />
+                                      </IconButton>
+                                    </Box>
                                   )}
-                                </Box>
-                              </Paper>
-                              
-                              {/* Message reactions */}
-                              {messageReactions[msg.id] && messageReactions[msg.id].length > 0 && (
-                                <Box sx={{ 
-                                  display: 'flex', 
-                                  gap: 0.5, 
-                                  mt: 1,
-                                  justifyContent: msg.isOwn ? 'flex-end' : 'flex-start'
-                                }}>
-                                  {messageReactions[msg.id].map((reaction, idx) => (
-                                    <Chip
-                                      key={idx}
-                                      label={reaction}
-                                      size="small"
-                                      sx={{ 
-                                        bgcolor: 'rgba(255, 255, 255, 0.8)',
-                                        fontSize: '0.75rem'
-                                      }}
-                                    />
+                                </Paper>
+                              </Box>
+                              {/* Emoji reactions display */}
+                              {reactionMsgId === msg.id && (
+                                <Box sx={{ display: 'flex', gap: 1, p: 1, mt: 0.5, justifyContent: 'center' }}>
+                                  {emojiList.map((emoji, i) => (
+                                    <IconButton key={i} onClick={() => handleEmojiSelect(emoji)} size="small">
+                                      <span style={{ fontSize: '1.3rem' }}>{emoji}</span>
+                                    </IconButton>
                                   ))}
                                 </Box>
                               )}
-                              
-                              {msg.attachment && (
-                                <Box sx={{ mt: 1 }}>
-                                  {msg.attachment.type.startsWith('image/') ? (
-                                    <img src={msg.attachment.url} alt={msg.attachment.name} style={{ maxWidth: 180, borderRadius: 8 }} />
-                                  ) : (
-                                    <Paper sx={{ p: 1, bgcolor: 'rgba(255, 255, 255, 0.8)', borderRadius: 2 }}>
-                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        {msg.attachment.type.startsWith('video/') ? <Videocam /> : 
-                                         msg.attachment.type.startsWith('audio/') ? <AudioFile /> : 
-                                         msg.attachment.type.startsWith('image/') ? <Image /> : <Description />}
-                                        <Typography variant="body2">{msg.attachment.name}</Typography>
-                                      </Box>
-                                    </Paper>
-                                  )}
-                                </Box>
-                              )}
-                              
-                              <Typography 
-                                variant="caption" 
-                                sx={{ 
-                                  color: 'text.secondary',
-                                  fontSize: '0.75rem',
-                                  mt: 0.5,
-                                  display: 'block',
-                                  textAlign: msg.isOwn ? 'right' : 'left'
-                                }}
-                              >
-                                {msg.time}
-                              </Typography>
                             </Box>
-                          </Box>
+                          )}
                         </Box>
                       </Grow>
                     ))}
@@ -947,24 +998,86 @@ const Chat = () => {
           }
         }}
       >
-        <MenuItem onClick={handleMoreMenuClose}>
+        <MenuItem onClick={() => { setSearchOpen(true); handleMoreMenuClose(); }}>
           <Search sx={{ mr: 2 }} />
           Search Messages
         </MenuItem>
-        <MenuItem onClick={handleMoreMenuClose}>
+        <MenuItem onClick={() => { setShareOpen(true); handleMoreMenuClose(); }}>
           <Share sx={{ mr: 2 }} />
           Share Chat
         </MenuItem>
-        <MenuItem onClick={handleMoreMenuClose}>
-          <ScheduleIcon sx={{ mr: 2 }} />
-          Schedule Session
-        </MenuItem>
-        <Divider />
-        <MenuItem onClick={handleMoreMenuClose} sx={{ color: 'error.main' }}>
+        <MenuItem onClick={() => { setClearOpen(true); handleMoreMenuClose(); }} sx={{ color: 'error.main' }}>
           <Delete sx={{ mr: 2 }} />
           Clear Chat
         </MenuItem>
       </Menu>
+
+      {/* Search Messages Dialog */}
+      <Dialog open={searchOpen} onClose={() => { setSearchOpen(false); setSearchTerm(""); }} maxWidth="sm" fullWidth>
+        <DialogTitle>Search Messages</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Search"
+            type="text"
+            fullWidth
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            variant="outlined"
+          />
+          <Box sx={{ mt: 2, maxHeight: 300, overflow: 'auto' }}>
+            {searchTerm && filteredMessages.length === 0 && (
+              <Typography color="text.secondary">No messages found.</Typography>
+            )}
+            {filteredMessages.map(msg => (
+              <Paper key={msg.id} sx={{ p: 2, mb: 1, bgcolor: msg.isOwn ? 'rgba(102,126,234,0.08)' : 'rgba(255,255,255,0.95)' }}>
+                <Typography variant="subtitle2" color="primary.main">{msg.sender}</Typography>
+                <Typography variant="body1">{highlightText(msg.content, searchTerm)}</Typography>
+                <Typography variant="caption" color="text.secondary">{msg.time}</Typography>
+              </Paper>
+            ))}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setSearchOpen(false); setSearchTerm(""); }}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Share Chat Dialog */}
+      <Dialog open={shareOpen} onClose={() => setShareOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Share Chat</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 2 }}>You can copy or download the chat history.</Typography>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button variant="outlined" startIcon={<ContentCopy />} onClick={handleCopyChat}>
+              {copied ? 'Copied!' : 'Copy to Clipboard'}
+            </Button>
+            <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleDownloadChat}>
+              Download as .txt
+            </Button>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShareOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Clear Chat Dialog */}
+      <Dialog open={clearOpen} onClose={() => setClearOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Clear Chat</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to clear this chat? This cannot be undone.</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setClearOpen(false)}>Cancel</Button>
+          <Button color="error" variant="contained" onClick={() => {
+            const chatId = chats[selectedChat]?.id;
+            setMessagesByChat(prev => ({ ...prev, [chatId]: [] }));
+            setClearOpen(false);
+          }}>Clear</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Snackbar for notifications */}
       <Snackbar

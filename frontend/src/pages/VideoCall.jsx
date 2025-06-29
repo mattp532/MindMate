@@ -58,6 +58,23 @@ const VideoCall = () => {
       
       socket.emit('join-room', roomId);
       setCallActive(true);
+
+      // Add system message for call start
+      const chatId = location.state?.chatId;
+      if (chatId) {
+        const key = `chat_messages_${chatId}`;
+        const messages = JSON.parse(localStorage.getItem(key) || '[]');
+        messages.push({
+          id: messages.length + 1,
+          sender: 'System',
+          avatar: '',
+          content: `Video call started with ${remoteName} at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isOwn: false,
+          system: true
+        });
+        localStorage.setItem(key, JSON.stringify(messages));
+      }
     };
     start();
 
@@ -106,7 +123,21 @@ const VideoCall = () => {
 
   const handleEndCall = () => {
     const chatId = location.state?.chatId;
+    const remoteName = location.state?.remoteName || 'User';
+    // Send system message to chat in localStorage for persistence
     if (chatId) {
+      const key = `chat_messages_${chatId}`;
+      const messages = JSON.parse(localStorage.getItem(key) || '[]');
+      messages.push({
+        id: messages.length + 1,
+        sender: 'System',
+        avatar: '',
+        content: `Video call ended with ${remoteName} at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isOwn: false,
+        system: true
+      });
+      localStorage.setItem(key, JSON.stringify(messages));
       navigate(`/chat?userId=${chatId}`);
     } else {
       navigate('/chat');
