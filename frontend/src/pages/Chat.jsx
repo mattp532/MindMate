@@ -381,10 +381,9 @@ const Chat = () => {
     setReactionMsgId(msgId);
   };
 
-  const handleEmojiSelect = (emoji) => {
+  const handleEmojiSelect = (msgId, emoji) => {
     setMessageReactions(prev => {
-      const prevReactions = prev[reactionMsgId] || [];
-      // If emoji already exists, increment count, else add
+      const prevReactions = prev[msgId] || [];
       const found = prevReactions.find(r => r.emoji === emoji);
       let newReactions;
       if (found) {
@@ -392,7 +391,7 @@ const Chat = () => {
       } else {
         newReactions = [...prevReactions, { emoji, count: 1 }];
       }
-      return { ...prev, [reactionMsgId]: newReactions };
+      return { ...prev, [msgId]: newReactions };
     });
     setAnchorEl(null);
     setReactionMsgId(null);
@@ -782,9 +781,18 @@ const Chat = () => {
                               {reactionMsgId === msg.id && (
                                 <Box sx={{ display: 'flex', gap: 1, p: 1, mt: 0.5, justifyContent: 'center' }}>
                                   {emojiList.map((emoji, i) => (
-                                    <IconButton key={i} onClick={() => handleEmojiSelect(emoji)} size="small">
+                                    <IconButton key={i} onClick={() => handleEmojiSelect(msg.id, emoji)} size="small">
                                       <span style={{ fontSize: '1.3rem' }}>{emoji}</span>
                                     </IconButton>
+                                  ))}
+                                </Box>
+                              )}
+                              {messageReactions[msg.id] && messageReactions[msg.id].length > 0 && (
+                                <Box sx={{ display: 'flex', gap: 0.5, ml: 1, mt: 0.5 }}>
+                                  {messageReactions[msg.id].map((r, i) => (
+                                    <Box key={i} sx={{ px: 1, py: 0.2, bgcolor: 'rgba(255,255,255,0.8)', borderRadius: 2, fontSize: '1.1rem', display: 'flex', alignItems: 'center', border: '1px solid #e0e7ff' }}>
+                                      {r.emoji} <span style={{ fontSize: '0.85rem', marginLeft: 4 }}>{r.count > 1 ? r.count : ''}</span>
+                                    </Box>
                                   ))}
                                 </Box>
                               )}
