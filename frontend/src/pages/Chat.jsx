@@ -31,7 +31,10 @@ import {
   SpeedDialAction,
   SpeedDialIcon,
   Tooltip,
-  Fab
+  Fab,
+  Tabs,
+  Tab,
+  CircularProgress
 } from '@mui/material';
 import { 
   Send, 
@@ -62,20 +65,38 @@ import {
   AudioFile,
   Close,
   CheckCircle,
-  Warning
+  Warning,
+  People,
+  Add,
+  Message
 } from '@mui/icons-material';
 import { useSearchParams } from 'react-router-dom';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import chatService from '../services/chatService';
+import socketService from '../services/socketService';
+import UserDiscovery from '../components/UserDiscovery';
 
 const Chat = () => {
   const [message, setMessage] = React.useState("");
   const [selectedChat, setSelectedChat] = React.useState(0);
+  const [activeTab, setActiveTab] = useState(0); // 0: Conversations, 1: Discover
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [searchParams] = useSearchParams();
   const userId = searchParams.get('userId');
+  const { currentUser } = useAuth();
 
-  // New state for enhanced features
+  // Real data state
+  const [conversations, setConversations] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedMatchId, setSelectedMatchId] = useState(null);
+  const [typingUsers, setTypingUsers] = useState(new Set());
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
+
+  // Enhanced features state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(false);
@@ -86,60 +107,11 @@ const Chat = () => {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [moreMenuAnchor, setMoreMenuAnchor] = useState(null);
 
-  // Mock data for demonstration
-  const chats = [
-    {
-      id: 1,
-      name: "Sarah Johnson",
-      avatar: "SJ",
-      lastMessage: "Great! Let's schedule our next session.",
-      time: "2:30 PM",
-      unread: 2,
-      isOnline: true,
-      lastActive: "2 min ago"
-    },
-    {
-      id: 2,
-      name: "Mike Chen",
-      avatar: "MC",
-      lastMessage: "The Python concepts are clear now.",
-      time: "1:15 PM",
-      unread: 0,
-      isOnline: false,
-      lastActive: "1 hour ago"
-    },
-    {
-      id: 3,
-      name: "Emma Davis",
-      avatar: "ED",
-      lastMessage: "Can you help me with React hooks?",
-      time: "11:45 AM",
-      unread: 1,
-      isOnline: true,
-      lastActive: "5 min ago"
-    }
-  ];
-
-  const [messagesByChat, setMessagesByChat] = useState({
-    1: [
-      { id: 1, sender: "Sarah Johnson", avatar: "SJ", content: "Hi! I'm excited to learn React from you!", time: "2:15 PM", isOwn: false },
-      { id: 2, sender: "You", avatar: "ME", content: "Hello Sarah! I'm glad to help you with React. What would you like to start with?", time: "2:17 PM", isOwn: true },
-      { id: 3, sender: "Sarah Johnson", avatar: "SJ", content: "I've been trying to understand hooks, especially useState and useEffect. They're a bit confusing.", time: "2:20 PM", isOwn: false },
-      { id: 4, sender: "You", avatar: "ME", content: "No worries! Hooks can be tricky at first. Let me explain them step by step. useState is for managing state in functional components...", time: "2:25 PM", isOwn: true },
-      { id: 5, sender: "Sarah Johnson", avatar: "SJ", content: "Great! Let's schedule our next session.", time: "2:30 PM", isOwn: false }
-    ],
-    2: [
-      { id: 1, sender: "Mike Chen", avatar: "MC", content: "The Python concepts are clear now.", time: "1:15 PM", isOwn: false },
-      { id: 2, sender: "You", avatar: "ME", content: "Glad to hear! Do you want to try a coding challenge?", time: "1:16 PM", isOwn: true }
-    ],
-    3: [
-      { id: 1, sender: "Emma Davis", avatar: "ED", content: "Can you help me with React hooks?", time: "11:45 AM", isOwn: false }
-    ]
-  });
   const [attachment, setAttachment] = useState(null);
   const fileInputRef = useRef();
   const messagesEndRef = useRef();
   const [chatFadeKey, setChatFadeKey] = useState(0);
+  const typingTimeoutRef = useRef(null);
 
   // Quick action buttons
   const quickActions = [
@@ -154,12 +126,185 @@ const Chat = () => {
   // Emoji reactions
   const emojiReactions = ['👍', '❤️', '😊', '🎉', '👏', '🔥', '💯', '🤔'];
 
+  // Initialize socket connection and load data
+  useEffect(() => {
+    if (currentUser) {
+      initializeChat();
+    }
+  }, [currentUser]);
+
+  // Initialize chat functionality
+  const initializeChat = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Set up authentication token
+      const token = await currentUser.getIdToken();
+      chatService.setToken(token);
+
+      // Connect to Socket.io
+      socketService.connect(currentUser.uid);
+
+      // Load conversations
+      await loadConversations();
+
+      // Set up socket event listeners
+      setupSocketListeners();
+
+    } catch (err) {
+      console.error('Error initializing chat:', err);
+      setError('Failed to initialize chat. Please refresh the page.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Set up Socket.io event listeners
+  const setupSocketListeners = () => {
+    // Listen for new messages
+    socketService.onNewMessage(selectedMatchId, handleNewMessage);
+    
+    // Listen for typing indicators
+    socketService.onTyping(selectedMatchId, handleTypingIndicator);
+    
+    // Listen for online status changes
+    socketService.onOnlineStatus('online', handleUserOnline);
+    socketService.onOnlineStatus('offline', handleUserOffline);
+  };
+
+  // Load conversations from backend
+  const loadConversations = async () => {
+    try {
+      const conversationsData = await chatService.getConversations();
+      setConversations(conversationsData);
+      
+      // Select first conversation if available
+      if (conversationsData.length > 0 && !selectedMatchId) {
+        setSelectedChat(0);
+        setSelectedMatchId(conversationsData[0].match_id);
+        await loadMessages(conversationsData[0].match_id);
+      }
+    } catch (err) {
+      console.error('Error loading conversations:', err);
+      setError('Failed to load conversations.');
+    }
+  };
+
+  // Load messages for a specific match
+  const loadMessages = async (matchId) => {
+    try {
+      const messagesData = await chatService.getMatchMessages(matchId);
+      
+      // Transform messages to match frontend format
+      const transformedMessages = messagesData.map(msg => ({
+        id: msg.id,
+        sender: msg.sender_name,
+        avatar: msg.sender_name?.charAt(0)?.toUpperCase() || 'U',
+        content: msg.content,
+        time: new Date(msg.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isOwn: msg.sender_firebase_uid === currentUser.uid,
+        timestamp: msg.sent_at
+      }));
+      
+      setMessages(transformedMessages);
+      
+      // Join the chat room
+      socketService.joinChat(matchId);
+      
+    } catch (err) {
+      console.error('Error loading messages:', err);
+      setError('Failed to load messages.');
+    }
+  };
+
+  // Handle new message from Socket.io
+  const handleNewMessage = (data) => {
+    const { matchId, message, senderId, timestamp } = data;
+    
+    if (matchId === selectedMatchId) {
+      const newMessage = {
+        id: Date.now(), // Temporary ID
+        sender: senderId === currentUser.uid ? 'You' : conversations.find(c => c.other_user_id === senderId)?.display_name || 'Unknown',
+        avatar: senderId === currentUser.uid ? 'ME' : (conversations.find(c => c.other_user_id === senderId)?.display_name?.charAt(0)?.toUpperCase() || 'U'),
+        content: message,
+        time: new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isOwn: senderId === currentUser.uid,
+        timestamp: timestamp
+      };
+      
+      setMessages(prev => [...prev, newMessage]);
+    }
+  };
+
+  // Handle typing indicator
+  const handleTypingIndicator = (data) => {
+    const { matchId, userId, isTyping } = data;
+    
+    if (matchId === selectedMatchId) {
+      setTypingUsers(prev => {
+        const newSet = new Set(prev);
+        if (isTyping) {
+          newSet.add(userId);
+        } else {
+          newSet.delete(userId);
+        }
+        return newSet;
+      });
+    }
+  };
+
+  // Handle user online status
+  const handleUserOnline = (userId) => {
+    setOnlineUsers(prev => new Set([...prev, userId]));
+  };
+
+  const handleUserOffline = (userId) => {
+    setOnlineUsers(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(userId);
+      return newSet;
+    });
+  };
+
+  // Handle conversation selection
+  const handleConversationSelect = async (index) => {
+    setSelectedChat(index);
+    const conversation = conversations[index];
+    setSelectedMatchId(conversation.match_id);
+    
+    // Leave previous chat room
+    if (selectedMatchId) {
+      socketService.leaveChat(selectedMatchId);
+    }
+    
+    // Load messages for new conversation
+    await loadMessages(conversation.match_id);
+    
+    // Update fade key for smooth transition
+    setChatFadeKey(prev => prev + 1);
+  };
+
+  // Handle match creation from UserDiscovery
+  const handleMatchCreated = async (match) => {
+    // Refresh conversations
+    await loadConversations();
+    
+    // Find the new conversation and select it
+    const newConversationIndex = conversations.findIndex(c => c.match_id === match.id);
+    if (newConversationIndex !== -1) {
+      handleConversationSelect(newConversationIndex);
+    }
+    
+    setSnackbar({ open: true, message: 'Match created successfully!', severity: 'success' });
+  };
+
   React.useEffect(() => {
     if (userId) {
-      const chatIndex = chats.findIndex(chat => chat.id === Number(userId));
+      const chatIndex = conversations.findIndex(chat => chat.match_id === Number(userId));
       if (chatIndex !== -1) setSelectedChat(chatIndex);
     }
-  }, [userId]);
+  }, [userId, conversations]);
 
   // Fade transition when switching chats
   React.useEffect(() => {
@@ -171,53 +316,91 @@ const Chat = () => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [selectedChat, messagesByChat]);
+  }, [selectedChat, messages]);
 
-  const handleSendMessage = () => {
-    if (message.trim() || attachment) {
-      const chatId = chats[selectedChat].id;
-      const newMsg = {
-        id: (messagesByChat[chatId]?.length || 0) + 1,
-        sender: "You",
-        avatar: "ME",
-        content: message,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isOwn: true,
-        attachment: attachment ? { name: attachment.name, url: URL.createObjectURL(attachment), type: attachment.type } : null,
-        replyTo: replyToMessage
-      };
-      setMessagesByChat(prev => ({
-        ...prev,
-        [chatId]: [...(prev[chatId] || []), newMsg]
-      }));
-      setMessage("");
-      setAttachment(null);
-      setReplyToMessage(null);
-      if (fileInputRef.current) fileInputRef.current.value = null;
+  const handleSendMessage = async () => {
+    if (message.trim() && selectedMatchId) {
+      try {
+        // Send message to backend
+        const sentMessage = await chatService.sendMessage(selectedMatchId, message);
+        
+        // Send message via Socket.io for real-time delivery
+        socketService.sendMessage(selectedMatchId, message, currentUser.uid);
+        
+        // Add message to local state
+        const newMsg = {
+          id: sentMessage.id,
+          sender: "You",
+          avatar: "ME",
+          content: message,
+          time: new Date(sentMessage.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isOwn: true,
+          timestamp: sentMessage.sent_at
+        };
+        
+        setMessages(prev => [...prev, newMsg]);
+        setMessage("");
+        setReplyToMessage(null);
+        
+        // Stop typing indicator
+        socketService.stopTyping(selectedMatchId, currentUser.uid);
+        
+      } catch (err) {
+        console.error('Error sending message:', err);
+        setSnackbar({ open: true, message: 'Failed to send message. Please try again.', severity: 'error' });
+      }
     }
   };
 
-  const sendQuickMessage = (content) => {
-    const chatId = chats[selectedChat].id;
-    const newMsg = {
-      id: (messagesByChat[chatId]?.length || 0) + 1,
-      sender: "You",
-      avatar: "ME",
-      content: content,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isOwn: true
-    };
-    setMessagesByChat(prev => ({
-      ...prev,
-      [chatId]: [...(prev[chatId] || []), newMsg]
-    }));
-    setShowQuickActions(false);
+  const sendQuickMessage = async (content) => {
+    if (selectedMatchId) {
+      try {
+        const sentMessage = await chatService.sendMessage(selectedMatchId, content);
+        socketService.sendMessage(selectedMatchId, content, currentUser.uid);
+        
+        const newMsg = {
+          id: sentMessage.id,
+          sender: "You",
+          avatar: "ME",
+          content: content,
+          time: new Date(sentMessage.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isOwn: true,
+          timestamp: sentMessage.sent_at
+        };
+        
+        setMessages(prev => [...prev, newMsg]);
+        setShowQuickActions(false);
+      } catch (err) {
+        console.error('Error sending quick message:', err);
+        setSnackbar({ open: true, message: 'Failed to send message.', severity: 'error' });
+      }
+    }
   };
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  // Handle typing indicator
+  const handleMessageChange = (e) => {
+    setMessage(e.target.value);
+    
+    // Start typing indicator
+    if (selectedMatchId && e.target.value.length > 0) {
+      socketService.startTyping(selectedMatchId, currentUser.uid);
+      
+      // Clear existing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      
+      // Stop typing indicator after 2 seconds of no typing
+      typingTimeoutRef.current = setTimeout(() => {
+        socketService.stopTyping(selectedMatchId, currentUser.uid);
+      }, 2000);
     }
   };
 
@@ -244,7 +427,7 @@ const Chat = () => {
 
   const handleCallConfirm = () => {
     setCallDialogOpen(false);
-    setSnackbar({ open: true, message: `Initiating ${callType} call with ${chats[selectedChat]?.name}...`, severity: 'info' });
+    setSnackbar({ open: true, message: `Initiating ${callType} call with ${conversations[selectedChat]?.name}...`, severity: 'info' });
     // Here you would integrate with actual calling service
   };
 
@@ -279,8 +462,8 @@ const Chat = () => {
     setMoreMenuAnchor(null);
   };
 
-  const chatId = chats[selectedChat]?.id;
-  const messages = messagesByChat[chatId] || [];
+  const chatId = conversations[selectedChat]?.id;
+  const messagesByChat = { [chatId]: messages };
 
   return (
     <Box sx={{ 
@@ -311,122 +494,192 @@ const Chat = () => {
               borderColor: 'divider',
               display: { xs: selectedChat === null ? 'block' : 'none', md: 'block' }
             }}>
-              <Box sx={{ 
-                p: { xs: 2, md: 3 }, 
-                borderBottom: 1, 
-                borderColor: 'divider',
-                bgcolor: 'rgba(102, 126, 234, 0.05)'
-              }}>
-                <Typography 
-                  variant="h5" 
+              {/* Tabs for Conversations and Discover */}
+              <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                <Tabs 
+                  value={activeTab} 
+                  onChange={(e, newValue) => setActiveTab(newValue)}
                   sx={{ 
-                    fontWeight: 700,
-                    fontSize: { xs: '1.25rem', md: '1.5rem' },
-                    color: 'primary.main'
+                    '& .MuiTab-root': { 
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      fontSize: '0.95rem'
+                    }
                   }}
                 >
-                  Conversations
-                </Typography>
+                  <Tab 
+                    label="Conversations" 
+                    icon={<Message />} 
+                    iconPosition="start"
+                  />
+                  <Tab 
+                    label="Discover" 
+                    icon={<People />} 
+                    iconPosition="start"
+                  />
+                </Tabs>
               </Box>
-              
-              <List sx={{ p: 0, maxHeight: 'calc(100vh - 200px)', overflow: 'auto' }}>
-                {chats.map((chat, index) => (
-                  <Grow key={chat.id} in={true} timeout={400 + index * 100}>
-                    <ListItem 
-                      button
-                      selected={selectedChat === index}
-                      onClick={() => setSelectedChat(index)}
+
+              {/* Conversations Tab */}
+              {activeTab === 0 && (
+                <>
+                  <Box sx={{ 
+                    p: { xs: 2, md: 3 }, 
+                    borderBottom: 1, 
+                    borderColor: 'divider',
+                    bgcolor: 'rgba(102, 126, 234, 0.05)'
+                  }}>
+                    <Typography 
+                      variant="h5" 
                       sx={{ 
-                        borderBottom: 1, 
-                        borderColor: 'divider',
-                        '&.Mui-selected': { 
-                          bgcolor: 'rgba(102, 126, 234, 0.08)',
-                          '&:hover': {
-                            bgcolor: 'rgba(102, 126, 234, 0.12)'
-                          }
-                        },
-                        '&:hover': {
-                          bgcolor: 'rgba(102, 126, 234, 0.04)'
-                        }
+                        fontWeight: 700,
+                        fontSize: { xs: '1.25rem', md: '1.5rem' },
+                        color: 'primary.main'
                       }}
                     >
-                      <ListItemText
-                        primary={
-                          <Box sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 1,
-                            mb: 0.5
-                          }}>
-                            <Typography 
-                              variant="subtitle1" 
-                              sx={{ 
-                                fontWeight: 600,
-                                fontSize: { xs: '0.9rem', md: '1rem' },
-                                color: 'text.primary'
-                              }}
-                            >
-                              {chat.name}
-                            </Typography>
-                            <Box sx={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: 0.5,
-                              ml: 'auto'
-                            }}>
-                              {chat.isOnline ? (
-                                <OnlinePrediction sx={{ fontSize: 16, color: 'success.main' }} />
-                              ) : (
-                                <Schedule sx={{ fontSize: 16, color: 'text.secondary' }} />
-                              )}
-                              <Typography variant="caption" color="text.secondary">
-                                {chat.lastActive}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        }
-                        secondary={
-                          <Box>
-                            <Typography 
-                              variant="body2" 
-                              color="text.secondary"
-                              sx={{ 
-                                fontWeight: 500,
-                                fontSize: '0.85rem',
-                                lineHeight: 1.4
-                              }}
-                            >
-                              {chat.lastMessage}
-                            </Typography>
-                            <Box sx={{ 
-                              display: 'flex', 
-                              justifyContent: 'space-between', 
-                              alignItems: 'center',
-                              mt: 0.5
-                            }}>
-                              <Typography variant="caption" color="text.secondary">
-                                {chat.time}
-                              </Typography>
-                              {chat.unread > 0 && (
-                                <Badge 
-                                  badgeContent={chat.unread} 
-                                  color="primary"
-                                  sx={{
-                                    '& .MuiBadge-badge': {
-                                      fontSize: '0.7rem',
-                                      fontWeight: 600
-                                    }
-                                  }}
-                                />
-                              )}
-                            </Box>
-                          </Box>
-                        }
-                      />
-                    </ListItem>
-                  </Grow>
-                ))}
-              </List>
+                      Conversations
+                    </Typography>
+                  </Box>
+                  
+                  {loading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                      <CircularProgress />
+                    </Box>
+                  ) : error ? (
+                    <Box sx={{ p: 2 }}>
+                      <Alert severity="error" onClose={() => setError(null)}>
+                        {error}
+                      </Alert>
+                    </Box>
+                  ) : conversations.length === 0 ? (
+                    <Box sx={{ textAlign: 'center', py: 4 }}>
+                      <Message sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+                      <Typography variant="h6" color="text.secondary">
+                        No conversations yet
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Start by discovering people to chat with.
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <List sx={{ p: 0, maxHeight: 'calc(100vh - 200px)', overflow: 'auto' }}>
+                      {conversations.map((conversation, index) => (
+                        <Grow key={conversation.match_id} in={true} timeout={400 + index * 100}>
+                          <ListItem 
+                            button
+                            selected={selectedChat === index}
+                            onClick={() => handleConversationSelect(index)}
+                            sx={{ 
+                              borderBottom: 1, 
+                              borderColor: 'divider',
+                              '&.Mui-selected': { 
+                                bgcolor: 'rgba(102, 126, 234, 0.08)',
+                                '&:hover': {
+                                  bgcolor: 'rgba(102, 126, 234, 0.12)'
+                                }
+                              },
+                              '&:hover': {
+                                bgcolor: 'rgba(102, 126, 234, 0.04)'
+                              }
+                            }}
+                          >
+                            <ListItemText
+                              primary={
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  gap: 1,
+                                  mb: 0.5
+                                }}>
+                                  <Typography 
+                                    variant="subtitle1" 
+                                    component="span"
+                                    sx={{ 
+                                      fontWeight: 600,
+                                      fontSize: { xs: '0.9rem', md: '1rem' },
+                                      color: 'text.primary'
+                                    }}
+                                  >
+                                    {conversation.display_name}
+                                  </Typography>
+                                  <Box sx={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: 0.5,
+                                    ml: 'auto'
+                                  }}>
+                                    {onlineUsers.has(conversation.other_user_id) ? (
+                                      <OnlinePrediction sx={{ fontSize: 16, color: 'success.main' }} />
+                                    ) : (
+                                      <Schedule sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                    )}
+                                    <Typography variant="caption" color="text.secondary" component="span">
+                                      {onlineUsers.has(conversation.other_user_id) ? 'Online' : 'Offline'}
+                                    </Typography>
+                                  </Box>
+                                </Box>
+                              }
+                              secondary={
+                                <Box>
+                                  <Typography 
+                                    variant="body2" 
+                                    color="text.secondary"
+                                    component="span"
+                                    sx={{ 
+                                      fontWeight: 500,
+                                      fontSize: '0.85rem',
+                                      lineHeight: 1.4,
+                                      display: 'block'
+                                    }}
+                                  >
+                                    {conversation.last_message_content || 'No messages yet'}
+                                  </Typography>
+                                  <Box sx={{ 
+                                    display: 'flex', 
+                                    justifyContent: 'space-between', 
+                                    alignItems: 'center',
+                                    mt: 0.5
+                                  }}>
+                                    <Typography variant="caption" color="text.secondary" component="span">
+                                      {conversation.latest_message_time 
+                                        ? new Date(conversation.latest_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                        : new Date(conversation.match_created_at).toLocaleDateString()
+                                      }
+                                    </Typography>
+                                    {conversation.unread_count > 0 && (
+                                      <Badge 
+                                        badgeContent={conversation.unread_count} 
+                                        color="primary"
+                                        sx={{
+                                          '& .MuiBadge-badge': {
+                                            fontSize: '0.7rem',
+                                            fontWeight: 600
+                                          }
+                                        }}
+                                      />
+                                    )}
+                                  </Box>
+                                </Box>
+                              }
+                            />
+                          </ListItem>
+                        </Grow>
+                      ))}
+                    </List>
+                  )}
+                </>
+              )}
+
+              {/* Discover Tab */}
+              {activeTab === 1 && (
+                <UserDiscovery 
+                  onUserSelected={(user) => {
+                    // Handle user selection for direct chat
+                    console.log('User selected:', user);
+                  }}
+                  onMatchCreated={handleMatchCreated}
+                />
+              )}
             </Box>
 
             {/* Chat Messages */}
@@ -471,7 +724,7 @@ const Chat = () => {
                           width: 14,
                           height: 14,
                           borderRadius: '50%',
-                          bgcolor: chats[selectedChat]?.isOnline ? 'success.main' : 'grey.400',
+                          bgcolor: onlineUsers.has(conversations[selectedChat]?.other_user_id) ? 'success.main' : 'grey.400',
                           border: '3px solid white',
                           boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                         }}
@@ -487,7 +740,7 @@ const Chat = () => {
                         fontWeight: 700
                       }}
                     >
-                      {chats[selectedChat]?.avatar}
+                      {conversations[selectedChat]?.display_name?.charAt(0)?.toUpperCase() || 'U'}
                     </Avatar>
                   </Badge>
                   <Box sx={{ flex: 1 }}>
@@ -499,7 +752,7 @@ const Chat = () => {
                         color: 'text.primary'
                       }}
                     >
-                      {chats[selectedChat]?.name}
+                      {conversations[selectedChat]?.display_name || 'Select a conversation'}
                     </Typography>
                     <Typography 
                       variant="body2" 
@@ -511,7 +764,7 @@ const Chat = () => {
                         fontSize: '0.85rem'
                       }}
                     >
-                      {chats[selectedChat]?.isOnline ? (
+                      {onlineUsers.has(conversations[selectedChat]?.other_user_id) ? (
                         <>
                           <OnlinePrediction sx={{ fontSize: 14, color: 'success.main' }} />
                           Online
@@ -519,8 +772,13 @@ const Chat = () => {
                       ) : (
                         <>
                           <Schedule sx={{ fontSize: 14, color: 'text.secondary' }} />
-                          {chats[selectedChat]?.lastActive}
+                          Offline
                         </>
+                      )}
+                      {typingUsers.has(conversations[selectedChat]?.other_user_id) && (
+                        <Typography variant="caption" color="primary.main" sx={{ ml: 1 }}>
+                          typing...
+                        </Typography>
                       )}
                     </Typography>
                   </Box>
@@ -868,7 +1126,7 @@ const Chat = () => {
                     maxRows={4}
                     placeholder="Type a message..."
                     value={message}
-                    onChange={(e) => setMessage(e.target.value)}
+                    onChange={handleMessageChange}
                     onKeyPress={handleKeyPress}
                     sx={{
                       '& .MuiOutlinedInput-root': {
@@ -924,7 +1182,7 @@ const Chat = () => {
         </DialogTitle>
         <DialogContent sx={{ textAlign: 'center', pb: 4 }}>
           <Typography variant="body1" sx={{ mb: 3 }}>
-            Start a {callType} call with <strong>{chats[selectedChat]?.name}</strong>?
+            Start a {callType} call with <strong>{conversations[selectedChat]?.name}</strong>?
           </Typography>
         </DialogContent>
         <DialogActions sx={{ justifyContent: 'center', pb: 3 }}>
