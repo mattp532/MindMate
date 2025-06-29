@@ -28,7 +28,8 @@ import {
   DialogContent,
   DialogActions,
   Snackbar,
-  CircularProgress
+  CircularProgress,
+  Autocomplete
 } from '@mui/material';
 import { 
   Person, 
@@ -47,6 +48,7 @@ import {
 } from '@mui/icons-material';
 import VideoAssessment from '../components/VideoAssessment';
 import { useAuth } from '../contexts/AuthContext';
+import { skillsService } from '../services/skillsService';
 import axios from 'axios';
 
 const Profile = () => {
@@ -72,12 +74,41 @@ const Profile = () => {
   const [skills, setSkills] = React.useState([]); // { name, verified, score }
   const [interests, setInterests] = React.useState([]); // { name }
   const [newSkill, setNewSkill] = React.useState("");
+  const [newInterest, setNewInterest] = React.useState("");
+  const [availableSkills, setAvailableSkills] = React.useState([]);
+  const [loadingSkills, setLoadingSkills] = React.useState(true);
   const [showVideoAssessment, setShowVideoAssessment] = React.useState(false);
   const [currentSkill, setCurrentSkill] = React.useState(null);
   const [showCongrats, setShowCongrats] = React.useState(false);
   const [lastVerifiedSkill, setLastVerifiedSkill] = React.useState(null);
   const [savingSkill, setSavingSkill] = React.useState(false);
+  const [savingInterest, setSavingInterest] = React.useState(false);
   const [skillSaveMessage, setSkillSaveMessage] = React.useState('');
+  const [interestSaveMessage, setInterestSaveMessage] = React.useState('');
+
+  // Fetch available skills from database
+  React.useEffect(() => {
+    const fetchSkills = async () => {
+      try {
+        setLoadingSkills(true);
+        const skillsData = await skillsService.getAllSkills();
+        setAvailableSkills(skillsData.map(skill => skill.name));
+      } catch (error) {
+        console.error('Error fetching skills:', error);
+        // Fallback to some common skills if API fails
+        setAvailableSkills([
+          'JavaScript', 'Python', 'React', 'Node.js', 'Java', 'C++', 'SQL', 'Git', 'Docker', 'AWS',
+          'English', 'Spanish', 'French', 'German', 'Japanese', 'Mandarin', 'Italian', 'Portuguese', 'Russian', 'Arabic',
+          'Piano', 'Guitar', 'Violin', 'Drums', 'Singing', 'Music Theory', 'Composition', 'Jazz', 'Classical', 'Rock',
+          'Cooking', 'Photography', 'Drawing', 'Yoga', 'Meditation', 'Chess', 'Public Speaking', 'Creative Writing'
+        ]);
+      } finally {
+        setLoadingSkills(false);
+      }
+    };
+
+    fetchSkills();
+  }, []);
 
   // Fetch user profile data
   React.useEffect(() => {
@@ -169,24 +200,26 @@ const Profile = () => {
     setSkills([]);
     setInterests([]);
     setNewSkill("");
+    setNewInterest("");
     setShowVideoAssessment(false);
     setCurrentSkill(null);
     setShowCongrats(false);
     setLastVerifiedSkill(null);
     setSavingSkill(false);
+    setSavingInterest(false);
     setSkillSaveMessage('');
+    setInterestSaveMessage('');
   }, [userId]);
 
   // Add a new skill and immediately start verification
-  const handleAddSkill = async () => {
-    const skillName = newSkill.trim();
+  const handleAddSkill = async (skillName) => {
     if (skillName && !skills.some(s => s.name.toLowerCase() === skillName.toLowerCase())) {
       setSavingSkill(true);
       setSkillSaveMessage('');
       
       const newSkillObj = { name: skillName, verified: false, score: null };
       setSkills([...skills, newSkillObj]);
-      setNewSkill("");
+      setNewSkill(""); // Clear the input field
       
       // Save the new skill to the database immediately
       try {
@@ -217,6 +250,115 @@ const Profile = () => {
       setNewSkill("");
       setSkillSaveMessage('Skill already exists!');
       setTimeout(() => setSkillSaveMessage(''), 3000);
+    }
+  };
+
+  // Add a new interest
+  const handleAddInterest = async (interestName) => {
+    if (interestName && !interests.some(i => i.name.toLowerCase() === interestName.toLowerCase())) {
+      setSavingInterest(true);
+      setInterestSaveMessage('');
+      
+      const newInterestObj = { name: interestName };
+      setInterests([...interests, newInterestObj]);
+      setNewInterest(""); // Clear the input field
+      
+      // Save the new interest to the database immediately
+      try {
+        const token = await currentUser.getIdToken();
+        await axios.put('http://localhost:8080/api/profile', {
+          fullName: profile.name,
+          bio: profile.bio,
+          location: profile.location.split(',')[0]?.trim() || '', // Extract city from location
+          skills: skills.map(skill => skill.name), // Include all existing skills
+          interests: [...interests.map(interest => interest.name), interestName], // Include all existing interests plus the new one
+        }, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        console.log('New interest saved to database:', interestName);
+        setInterestSaveMessage('Interest added successfully!');
+        setTimeout(() => setInterestSaveMessage(''), 3000); // Clear message after 3 seconds
+      } catch (error) {
+        console.error('Error saving new interest to database:', error);
+        setInterestSaveMessage('Failed to save interest. Please try again.');
+        setTimeout(() => setInterestSaveMessage(''), 3000); // Clear message after 3 seconds
+      } finally {
+        setSavingInterest(false);
+      }
+    } else if (interestName && interests.some(i => i.name.toLowerCase() === interestName.toLowerCase())) {
+      // If interest already exists, just clear the input
+      setNewInterest("");
+      setInterestSaveMessage('Interest already exists!');
+      setTimeout(() => setInterestSaveMessage(''), 3000);
+    }
+  };
+
+  // Remove an interest
+  const handleRemoveInterest = async (interestToRemove) => {
+    try {
+      setSavingInterest(true);
+      const token = await currentUser.getIdToken();
+      
+      // Remove from backend
+      await axios.delete(`http://localhost:8080/api/profile/interests`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        data: {
+          interest: interestToRemove
+        }
+      });
+      
+      // Remove from local state
+      setInterests(interests.filter(interest => interest.name !== interestToRemove));
+      setInterestSaveMessage(`Interest "${interestToRemove}" removed successfully!`);
+      
+      // Clear message after 3 seconds
+      setTimeout(() => setInterestSaveMessage(''), 3000);
+      
+    } catch (error) {
+      console.error('Error removing interest:', error);
+      setInterestSaveMessage('Failed to remove interest. Please try again.');
+      
+      // Clear error message after 3 seconds
+      setTimeout(() => setInterestSaveMessage(''), 3000);
+    } finally {
+      setSavingInterest(false);
+    }
+  };
+
+  const handleRemoveSkill = async (skillToRemove) => {
+    try {
+      setSavingSkill(true);
+      const token = await currentUser.getIdToken();
+      
+      // Remove from backend
+      await axios.delete(`http://localhost:8080/api/profile/skills`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        data: {
+          skill: skillToRemove
+        }
+      });
+      
+      // Remove from local state
+      setSkills(skills.filter(skill => skill.name !== skillToRemove));
+      setSkillSaveMessage(`Skill "${skillToRemove}" removed successfully!`);
+      
+      // Clear message after 3 seconds
+      setTimeout(() => setSkillSaveMessage(''), 3000);
+      
+    } catch (error) {
+      console.error('Error removing skill:', error);
+      setSkillSaveMessage('Failed to remove skill. Please try again.');
+      
+      // Clear error message after 3 seconds
+      setTimeout(() => setSkillSaveMessage(''), 3000);
+    } finally {
+      setSavingSkill(false);
     }
   };
 
@@ -423,12 +565,54 @@ const Profile = () => {
               </Alert>
               
               <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' }, mb: 2, justifyContent: 'center' }}>
-                <TextField label="Skill Name" value={newSkill} onChange={(e) => setNewSkill(e.target.value)} placeholder="e.g., Python, Design, Marketing" fullWidth sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: { xs: '1.1rem', md: '1.2rem' }, boxShadow: '0 2px 8px rgba(102,126,234,0.08)' } }} />
+                <Autocomplete
+                  options={availableSkills.filter(skill => !skills.some(s => s.name.toLowerCase() === skill.toLowerCase()))}
+                  value={newSkill}
+                  onChange={(event, newValue) => {
+                    if (newValue) {
+                      setNewSkill(newValue);
+                      handleAddSkill(newValue);
+                    }
+                  }}
+                  onInputChange={(event, newInputValue) => {
+                    setNewSkill(newInputValue);
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Skill Name"
+                      placeholder="e.g., Python, Design, Marketing"
+                      fullWidth
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {loadingSkills ? <CircularProgress color="inherit" size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                      sx={{ 
+                        '& .MuiOutlinedInput-root': { 
+                          borderRadius: 2, 
+                          fontSize: { xs: '1.1rem', md: '1.2rem' }, 
+                          boxShadow: '0 2px 8px rgba(102,126,234,0.08)' 
+                        } 
+                      }}
+                    />
+                  )}
+                  loading={loadingSkills}
+                  freeSolo
+                  selectOnFocus
+                  clearOnBlur
+                  handleHomeEndKeys
+                  sx={{ flex: 1 }}
+                />
                 <Button 
                   variant="contained" 
                   startIcon={savingSkill ? <CircularProgress size={20} /> : <Add />} 
-                  onClick={handleAddSkill}
-                  disabled={savingSkill || !newSkill.trim()}
+                  onClick={() => handleAddSkill(newSkill)}
+                  disabled={savingSkill || !newSkill.trim() || skills.some(s => s.name.toLowerCase() === newSkill.trim().toLowerCase())}
                   sx={{ minWidth: { xs: '100%', sm: 120 }, borderRadius: 2, py: 1.5, fontWeight: 'bold', textTransform: 'none', fontSize: { xs: '1.1rem', md: '1.2rem' }, boxShadow: '0 2px 8px rgba(102,126,234,0.12)' }}
                 >
                   {savingSkill ? 'Saving...' : 'Add'}
@@ -472,6 +656,7 @@ const Profile = () => {
                                 }
                                 color={skill.verified ? "success" : skill.score ? "warning" : "default"}
                                 variant={skill.verified ? "filled" : "outlined"}
+                                onDelete={() => handleRemoveSkill(skill.name)}
                                 sx={{ 
                                   fontSize: { xs: '1rem', md: '1.1rem' }, 
                                   height: { xs: 32, md: 40 }, 
@@ -511,6 +696,75 @@ const Profile = () => {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: '0.9rem', md: '1rem' } }}>
                 Skills you want to learn
               </Typography>
+              
+              {/* Add Interest Section */}
+              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' }, mb: 2, justifyContent: 'center' }}>
+                <Autocomplete
+                  options={availableSkills.filter(skill => !interests.some(i => i.name.toLowerCase() === skill.toLowerCase()))}
+                  value={newInterest}
+                  onChange={(event, newValue) => {
+                    if (newValue) {
+                      setNewInterest(newValue);
+                      handleAddInterest(newValue);
+                    }
+                  }}
+                  onInputChange={(event, newInputValue) => {
+                    setNewInterest(newInputValue);
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Add Interest"
+                      placeholder="e.g., Python, French, Piano"
+                      fullWidth
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {loadingSkills ? <CircularProgress color="inherit" size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                      sx={{ 
+                        '& .MuiOutlinedInput-root': { 
+                          borderRadius: 2, 
+                          fontSize: { xs: '1rem', md: '1.1rem' }, 
+                          boxShadow: '0 2px 8px rgba(102,126,234,0.08)' 
+                        } 
+                      }}
+                    />
+                  )}
+                  loading={loadingSkills}
+                  freeSolo
+                  selectOnFocus
+                  clearOnBlur
+                  handleHomeEndKeys
+                  sx={{ flex: 1 }}
+                />
+                <Button 
+                  variant="contained" 
+                  startIcon={savingInterest ? <CircularProgress size={20} /> : <Add />} 
+                  onClick={() => handleAddInterest(newInterest)}
+                  disabled={savingInterest || !newInterest.trim() || interests.some(i => i.name.toLowerCase() === newInterest.trim().toLowerCase())}
+                  sx={{ minWidth: { xs: '100%', sm: 120 }, borderRadius: 2, py: 1.5, fontWeight: 'bold', textTransform: 'none', fontSize: { xs: '1rem', md: '1.1rem' }, boxShadow: '0 2px 8px rgba(102,126,234,0.12)' }}
+                >
+                  {savingInterest ? 'Saving...' : 'Add'}
+                </Button>
+              </Box>
+              
+              {/* Interest save message */}
+              {interestSaveMessage && (
+                <Alert 
+                  severity={interestSaveMessage.includes('successfully') ? 'success' : interestSaveMessage.includes('already exists') ? 'info' : 'error'} 
+                  sx={{ mb: 2, borderRadius: 2 }}
+                >
+                  {interestSaveMessage}
+                </Alert>
+              )}
+              
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 1, fontSize: { xs: '0.9rem', md: '1rem' } }}>Your Interests</Typography>
               <Box sx={{ flex: 1, overflow: 'auto' }}>
                 {interests.length === 0 ? (
                   <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
@@ -524,6 +778,7 @@ const Profile = () => {
                           label={interest.name}
                           color="primary"
                           variant="outlined"
+                          onDelete={() => handleRemoveInterest(interest.name)}
                           sx={{ 
                             fontSize: { xs: '0.9rem', md: '1rem' }, 
                             height: { xs: 28, md: 32 }, 

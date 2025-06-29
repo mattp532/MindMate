@@ -6,17 +6,21 @@ const pool = require('../db');
  * @returns {Promise<Array>} - Array of matched users with profile info, skills, interests
  */
 exports.getMatchesWithProfiles = async (firebaseUid) => {
-  // 1. Find matched user IDs based on skills and interests
-  // Match logic: User A's skills match User B's interests AND User B's skills match User A's interests
+  // 1. Find matched user IDs based on verified skills and interests
+  // Match logic: User A's verified skills match User B's interests AND User B's verified skills match User A's interests
   const matchSql = `
     SELECT DISTINCT u2.firebase_uid
-    FROM user_skills u1_skills
-    JOIN user_interests u2_interests ON u1_skills.skill_id = u2_interests.skill_id
-    JOIN user_interests u1_interests ON u1_interests.user_firebase_uid = u1_skills.user_firebase_uid
-    JOIN user_skills u2_skills ON u2_skills.user_firebase_uid = u2_interests.user_firebase_uid
-        AND u2_skills.skill_id = u1_interests.skill_id
-    JOIN users u2 ON u2.firebase_uid = u2_skills.user_firebase_uid
-    WHERE u1_skills.user_firebase_uid = $1
+    FROM user_teaches u1_teaches
+    JOIN skill_verifications sv1 ON u1_teaches.skill_id = sv1.skill_id AND sv1.user_firebase_uid = u1_teaches.user_firebase_uid
+    JOIN user_learns u2_learns ON u1_teaches.skill_id = u2_learns.skill_id
+    JOIN user_learns u1_learns ON u1_learns.user_firebase_uid = u1_teaches.user_firebase_uid
+    JOIN user_teaches u2_teaches ON u2_teaches.user_firebase_uid = u2_learns.user_firebase_uid
+    JOIN skill_verifications sv2 ON u2_teaches.skill_id = sv2.skill_id AND sv2.user_firebase_uid = u2_teaches.user_firebase_uid
+        AND u2_teaches.skill_id = u1_learns.skill_id
+    JOIN users u2 ON u2.firebase_uid = u2_teaches.user_firebase_uid
+    WHERE u1_teaches.user_firebase_uid = $1
+    AND sv1.verified = true
+    AND sv2.verified = true
     AND u2.firebase_uid != $1; -- Don't match with yourself
   `;
 
@@ -36,12 +40,15 @@ exports.getMatchesWithProfiles = async (firebaseUid) => {
   const profilesRes = await pool.query(profilesSql, [matchedIds]);
   const profiles = profilesRes.rows;
 
-  // 3. Fetch skills for all matched users
+  // 3. Fetch skills for all matched users (what they can teach)
   const skillsSql = `
-    SELECT us.user_firebase_uid, s.name AS skill, us.verified, us.verification_score
-    FROM user_skills us
-    JOIN skills s ON s.id = us.skill_id
-    WHERE us.user_firebase_uid = ANY($1)
+    SELECT ut.user_firebase_uid, s.name AS skill,
+           COALESCE(sv.verified, false) as verified,
+           sv.verification_score
+    FROM user_teaches ut
+    JOIN skills s ON s.id = ut.skill_id
+    LEFT JOIN skill_verifications sv ON s.id = sv.skill_id AND sv.user_firebase_uid = ut.user_firebase_uid
+    WHERE ut.user_firebase_uid = ANY($1)
   `;
   const skillsRes = await pool.query(skillsSql, [matchedIds]);
 
@@ -49,15 +56,19 @@ exports.getMatchesWithProfiles = async (firebaseUid) => {
   const skillsMap = {};
   skillsRes.rows.forEach(({ user_firebase_uid, skill, verified, verification_score }) => {
     if (!skillsMap[user_firebase_uid]) skillsMap[user_firebase_uid] = [];
-    skillsMap[user_firebase_uid].push({ name: skill, verified, verification_score });
+    skillsMap[user_firebase_uid].push({ 
+      name: skill, 
+      verified: verified || false, 
+      verification_score: verification_score 
+    });
   });
 
-  // 4. Fetch interests for all matched users
+  // 4. Fetch interests for all matched users (what they want to learn)
   const interestsSql = `
-    SELECT ui.user_firebase_uid, s.name AS interest
-    FROM user_interests ui
-    JOIN skills s ON s.id = ui.skill_id
-    WHERE ui.user_firebase_uid = ANY($1)
+    SELECT ul.user_firebase_uid, s.name AS interest
+    FROM user_learns ul
+    JOIN skills s ON s.id = ul.skill_id
+    WHERE ul.user_firebase_uid = ANY($1)
   `;
   const interestsRes = await pool.query(interestsSql, [matchedIds]);
 
@@ -79,24 +90,26 @@ exports.getMatchesWithProfiles = async (firebaseUid) => {
 };
 
 /**
- * Check if user has skills and interests for matching
+ * Check if user has verified skills and interests for matching
  * @param {string} firebaseUid - the user to check
  * @returns {Promise<Object>} - Object with hasSkills and hasInterests boolean flags
  */
 exports.checkUserMatchingEligibility = async (firebaseUid) => {
-  // Check if user has at least one verified skill
+  // Check if user has at least one verified skill (what they can teach)
   const skillsSql = `
     SELECT COUNT(*) as skill_count
-    FROM user_skills
-    WHERE user_firebase_uid = $1 AND verified = true
+    FROM user_teaches ut
+    JOIN skill_verifications sv ON ut.skill_id = sv.skill_id AND sv.user_firebase_uid = ut.user_firebase_uid
+    WHERE ut.user_firebase_uid = $1
+    AND sv.verified = true
   `;
   const skillsRes = await pool.query(skillsSql, [firebaseUid]);
   const hasSkills = parseInt(skillsRes.rows[0].skill_count) > 0;
 
-  // Check if user has at least one interest
+  // Check if user has at least one interest (what they want to learn)
   const interestsSql = `
     SELECT COUNT(*) as interest_count
-    FROM user_interests
+    FROM user_learns
     WHERE user_firebase_uid = $1
   `;
   const interestsRes = await pool.query(interestsSql, [firebaseUid]);

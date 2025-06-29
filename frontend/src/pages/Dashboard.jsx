@@ -84,6 +84,8 @@ const Dashboard = () => {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
   const [message, setMessage] = React.useState('');
+  const [userProfile, setUserProfile] = React.useState(null);
+  const [profileLoading, setProfileLoading] = React.useState(true);
 
   const popularSkills = [
     "JavaScript", "Python", "React", "Node.js", "Data Science", 
@@ -122,12 +124,41 @@ const Dashboard = () => {
     fetchMatches();
   }, [currentUser]);
 
+  // Fetch user profile to check verification status
+  React.useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!currentUser) return;
+      
+      try {
+        setProfileLoading(true);
+        const token = await currentUser.getIdToken();
+        
+        const response = await axios.get('http://localhost:8080/api/profile', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        setUserProfile(response.data);
+        
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+        setUserProfile(null);
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, [currentUser]);
+
   // Transform backend data to match frontend format
   const transformedMatches = matches.map((match, index) => ({
     id: match.firebase_uid,
     name: match.name || 'Anonymous User',
     avatar: (match.name || 'A').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase(),
-    skills: match.skills ? match.skills.map(skill => skill.name || skill) : [],
+    skills: match.skills ? match.skills.map(skill => skill.name || skill) : [], // What they can teach
+    interests: match.interests ? match.interests.map(interest => interest.name || interest) : [], // What they want to learn
     rating: 4.8, // Default rating since we don't have this in backend yet
     location: match.city && match.country ? `${match.city}, ${match.country}` : 'Location not set',
     isOnline: true, // Default to online since we don't have this in backend yet
@@ -138,6 +169,11 @@ const Dashboard = () => {
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
   };
+
+  // Check if user meets verification requirements
+  const hasVerifiedSkill = userProfile?.skills?.some(skill => skill.verified) || false;
+  const hasInterest = userProfile?.interests?.length > 0 || false;
+  const meetsRequirements = hasVerifiedSkill && hasInterest;
 
   // Toronto coordinates
   const torontoCoords = [43.6532, -79.3832];
@@ -198,12 +234,15 @@ const Dashboard = () => {
     );
   };
 
-  // Filter matches by skill
+  // Filter matches by skill or interest
   const filteredMatches = searchSkill.trim() === ""
     ? transformedMatches
     : transformedMatches.filter(match =>
         match.skills.some(skill =>
           skill.toLowerCase().includes(searchSkill.trim().toLowerCase())
+        ) ||
+        match.interests.some(interest =>
+          interest.toLowerCase().includes(searchSkill.trim().toLowerCase())
         )
       );
 
@@ -295,8 +334,36 @@ const Dashboard = () => {
               </Alert>
             )}
             
+            {/* Verification Requirement Message */}
+            {!profileLoading && !meetsRequirements && (
+              <Alert 
+                severity="warning" 
+                sx={{ mb: 3, borderRadius: 2 }}
+                action={
+                  <Button 
+                    color="inherit" 
+                    size="small" 
+                    onClick={() => navigate('/profile')}
+                    sx={{ fontWeight: 'bold' }}
+                  >
+                    Complete Profile
+                  </Button>
+                }
+              >
+                <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
+                  Complete your profile to see matches!
+                </Typography>
+                <Typography variant="body2">
+                  You need at least <strong>1 verified skill</strong> and <strong>1 interest</strong> to find matches. 
+                  {!hasVerifiedSkill && ' Add skills and verify them with video assessments. Only verified skills are used for matching. '}
+                  {!hasInterest && ' Add interests to show what you want to learn. '}
+                  Click "Complete Profile" to get started.
+                </Typography>
+              </Alert>
+            )}
+            
             {/* Matches List */}
-            {!loading && !error && (
+            {!loading && !error && meetsRequirements && (
               <List sx={{ p: 0 }}>
                 {filteredMatches.map((match, index) => (
                   <Grow key={match.id} in={true} timeout={800 + index * 200}>
@@ -305,10 +372,92 @@ const Dashboard = () => {
                       onClick={() => { setSelectedCoords(match.coordinates); setSelectedUserId(match.id); }}
                     >
                       <ListItemButton sx={{ borderRadius: 3, mb: 2, p: 3, transition: 'all 0.3s ease-in-out', border: '1px solid rgba(0,0,0,0.06)', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.04)', transform: 'translateY(-2px)', boxShadow: '0 8px 25px rgba(0,0,0,0.1)', borderColor: 'primary.main' } }}>
-                        <ListItemAvatar>
+                        <ListItemAvatar sx={{ mr: 2 }}>
                           <Badge overlap="circular" anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} badgeContent={<Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: match.isOnline ? 'success.main' : 'grey.400', border: '3px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }} />}> <Avatar sx={{ width: 64, height: 64, bgcolor: 'primary.main', fontSize: '1.5rem', fontWeight: 700, boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)' }}>{match.avatar}</Avatar> </Badge>
                         </ListItemAvatar>
-                        <ListItemText primary={<Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}><Typography variant="h6" sx={{ fontWeight: 700, fontSize: { xs: '1rem', md: '1.25rem' }, color: 'text.primary' }}>{match.name}</Typography><Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><Star sx={{ color: 'warning.main', fontSize: 18 }} /><Typography variant="body2" sx={{ fontWeight: 600 }}>{match.rating}</Typography></Box></Box>} secondary={<Box><Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}><LocationOn sx={{ fontSize: 16, color: 'text.secondary' }} /><Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>{match.location}</Typography><Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 1 }}>{match.isOnline ? (<OnlinePrediction sx={{ fontSize: 16, color: 'success.main' }} />) : (<Schedule sx={{ fontSize: 16, color: 'text.secondary' }} />)}<Typography variant="caption" color="text.secondary">{match.lastActive}</Typography></Box></Box><Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>{match.skills.map((skill, skillIndex) => (<Chip key={skillIndex} label={skill} size="small" sx={{ bgcolor: 'rgba(102, 126, 234, 0.1)', color: 'primary.main', fontWeight: 600, fontSize: '0.75rem', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.2)' } }} />))}</Box></Box>} />
+                        <ListItemText 
+                          primary={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                              <Typography variant="h6" sx={{ fontWeight: 700, fontSize: { xs: '1rem', md: '1.25rem' }, color: 'text.primary' }}>
+                                {match.name}
+                              </Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Star sx={{ color: 'warning.main', fontSize: 18 }} />
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>{match.rating}</Typography>
+                              </Box>
+                            </Box>
+                          } 
+                          secondary={
+                            <Box>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
+                                <LocationOn sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                  {match.location}
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 1 }}>
+                                  {match.isOnline ? (
+                                    <OnlinePrediction sx={{ fontSize: 16, color: 'success.main' }} />
+                                  ) : (
+                                    <Schedule sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                  )}
+                                  <Typography variant="caption" color="text.secondary">
+                                    {match.lastActive}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                              
+                              {/* Skills Section - What they can teach */}
+                              {match.skills.length > 0 && (
+                                <Box sx={{ mb: 1.5 }}>
+                                  <Typography variant="caption" sx={{ fontWeight: 700, color: 'primary.main', display: 'block', mb: 0.5 }}>
+                                    🎯 Can Teach:
+                                  </Typography>
+                                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                    {match.skills.map((skill, skillIndex) => (
+                                      <Chip 
+                                        key={skillIndex} 
+                                        label={skill} 
+                                        size="small" 
+                                        sx={{ 
+                                          bgcolor: 'rgba(102, 126, 234, 0.1)', 
+                                          color: 'primary.main', 
+                                          fontWeight: 600, 
+                                          fontSize: '0.75rem', 
+                                          '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.2)' } 
+                                        }} 
+                                      />
+                                    ))}
+                                  </Box>
+                                </Box>
+                              )}
+                              
+                              {/* Interests Section - What they want to learn */}
+                              {match.interests.length > 0 && (
+                                <Box sx={{ mb: 1 }}>
+                                  <Typography variant="caption" sx={{ fontWeight: 700, color: 'secondary.main', display: 'block', mb: 0.5 }}>
+                                    📚 Wants to Learn:
+                                  </Typography>
+                                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                    {match.interests.map((interest, interestIndex) => (
+                                      <Chip 
+                                        key={interestIndex} 
+                                        label={interest} 
+                                        size="small" 
+                                        sx={{ 
+                                          bgcolor: 'rgba(156, 39, 176, 0.1)', 
+                                          color: 'secondary.main', 
+                                          fontWeight: 600, 
+                                          fontSize: '0.75rem', 
+                                          '&:hover': { bgcolor: 'rgba(156, 39, 176, 0.2)' } 
+                                        }} 
+                                      />
+                                    ))}
+                                  </Box>
+                                </Box>
+                              )}
+                            </Box>
+                          } 
+                        />
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, ml: 2 }}>
                           <Button 
                             variant="contained" 
@@ -333,7 +482,7 @@ const Dashboard = () => {
                     </ListItem>
                   </Grow>
                 ))}
-                {filteredMatches.length === 0 && !loading && !error && !message?.includes('need to') && (
+                {filteredMatches.length === 0 && !loading && !error && !message?.includes('need to') && meetsRequirements && (
                   <Typography sx={{ p: 3, textAlign: 'center', color: 'text.secondary', fontWeight: 600 }}>
                     No matches found for that skill.
                   </Typography>
@@ -358,9 +507,9 @@ const Dashboard = () => {
             border: '1px solid rgba(255, 255, 255, 0.2)' 
           }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>Search Skills</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>Search Skills & Interests</Typography>
               <TextField
-                placeholder="Search for skills..."
+                placeholder="Search for skills or interests..."
                 size="small"
                 value={searchSkill}
                 onChange={e => setSearchSkill(e.target.value)}

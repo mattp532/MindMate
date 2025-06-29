@@ -1,6 +1,60 @@
 // services/profileService.js
 const pool = require('../db');
 
+// New function to get all available skills
+exports.getAllSkills = async () => {
+  const res = await pool.query('SELECT id, name FROM skills ORDER BY name');
+  return res.rows;
+};
+
+// New function to get skill distribution statistics
+exports.getSkillDistribution = async () => {
+  // Get all skills with counts of teachers and learners
+  const skillStatsSql = `
+    SELECT 
+      s.id,
+      s.name,
+      COUNT(DISTINCT ut.user_firebase_uid) as teachers_count,
+      COUNT(DISTINCT ul.user_firebase_uid) as learners_count
+    FROM skills s
+    LEFT JOIN user_teaches ut ON s.id = ut.skill_id
+    LEFT JOIN user_learns ul ON s.id = ul.skill_id
+    GROUP BY s.id, s.name
+    ORDER BY s.name
+  `;
+  
+  const skillStatsRes = await pool.query(skillStatsSql);
+  
+  // Get specific Python learners
+  const pythonLearnersSql = `
+    SELECT u.name, u.email, u.city, u.country
+    FROM users u
+    JOIN user_learns ul ON u.firebase_uid = ul.user_firebase_uid
+    JOIN skills s ON ul.skill_id = s.id
+    WHERE s.name = 'Python'
+  `;
+  
+  const pythonLearnersRes = await pool.query(pythonLearnersSql);
+  
+  // Get all teachers (people who can teach any skill)
+  const allTeachersSql = `
+    SELECT DISTINCT u.name, u.email, u.city, u.country
+    FROM users u
+    JOIN user_teaches ut ON u.firebase_uid = ut.user_firebase_uid
+  `;
+  
+  const allTeachersRes = await pool.query(allTeachersSql);
+  
+  return {
+    skillStats: skillStatsRes.rows,
+    pythonLearners: pythonLearnersRes.rows,
+    allTeachers: allTeachersRes.rows,
+    totalSkills: skillStatsRes.rows.length,
+    totalTeachers: allTeachersRes.rows.length,
+    totalPythonLearners: pythonLearnersRes.rows.length
+  };
+};
+
 exports.getProfile = async (firebaseUid) => {
   const res = await pool.query('SELECT firebase_uid, email, name, bio, city, country FROM users WHERE firebase_uid = $1', [firebaseUid]);
   if (res.rows.length === 0) {
@@ -9,30 +63,32 @@ exports.getProfile = async (firebaseUid) => {
     throw error;
   }
   
-  // Fetch user's skills with verification status
+  // Fetch user's skills (what they can teach)
   const skillsRes = await pool.query(`
-    SELECT s.name, us.verified, us.verification_score, us.verified_at
+    SELECT s.name, s.id,
+           COALESCE(sv.verified, false) as verified,
+           sv.verification_score
     FROM skills s 
-    JOIN user_skills us ON s.id = us.skill_id 
-    WHERE us.user_firebase_uid = $1
-    ORDER BY us.created_at DESC
+    JOIN user_teaches ut ON s.id = ut.skill_id 
+    LEFT JOIN skill_verifications sv ON s.id = sv.skill_id AND sv.user_firebase_uid = $1
+    WHERE ut.user_firebase_uid = $1
+    ORDER BY s.name
   `, [firebaseUid]);
   
-  // Fetch user's interests
+  // Fetch user's interests (what they want to learn)
   const interestsRes = await pool.query(`
     SELECT s.name 
     FROM skills s 
-    JOIN user_interests ui ON s.id = ui.skill_id 
-    WHERE ui.user_firebase_uid = $1
-    ORDER BY ui.created_at DESC
+    JOIN user_learns ul ON s.id = ul.skill_id 
+    WHERE ul.user_firebase_uid = $1
+    ORDER BY s.name
   `, [firebaseUid]);
   
   const userData = res.rows[0];
   userData.skills = skillsRes.rows.map(row => ({
     name: row.name,
     verified: row.verified,
-    verification_score: row.verification_score,
-    verified_at: row.verified_at
+    verification_score: row.verification_score
   }));
   userData.interests = interestsRes.rows.map(row => row.name);
   
@@ -69,8 +125,12 @@ exports.updateProfile = async (firebaseUid, profileData) => {
       throw new Error('User not found');
     }
     
-    // Handle skills (save as unverified initially)
+    // Handle skills (what user can teach)
     if (skills && skills.length > 0) {
+      // Clear existing skills for this user
+      await client.query('DELETE FROM user_teaches WHERE user_firebase_uid = $1', [firebaseUid]);
+      
+      // Add new skills
       for (const skillName of skills) {
         // Insert skill if it doesn't exist
         let skillRes = await client.query(
@@ -85,20 +145,18 @@ exports.updateProfile = async (firebaseUid, profileData) => {
         
         const skillId = skillRes.rows[0].id;
         
-        // Insert or update user skill as unverified
+        // Link skill to user as teaching skill
         await client.query(
-          `INSERT INTO user_skills (user_firebase_uid, skill_id, verified, verification_score) 
-           VALUES ($1, $2, FALSE, NULL) 
-           ON CONFLICT (user_firebase_uid, skill_id) DO NOTHING`,
+          'INSERT INTO user_teaches (user_firebase_uid, skill_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
           [firebaseUid, skillId]
         );
       }
     }
     
-    // Handle interests
+    // Handle interests (what user wants to learn)
     if (interests && interests.length > 0) {
       // Clear existing interests for this user
-      await client.query('DELETE FROM user_interests WHERE user_firebase_uid = $1', [firebaseUid]);
+      await client.query('DELETE FROM user_learns WHERE user_firebase_uid = $1', [firebaseUid]);
       
       // Add new interests
       for (const interestName of interests) {
@@ -115,9 +173,9 @@ exports.updateProfile = async (firebaseUid, profileData) => {
         
         const skillId = skillRes.rows[0].id;
         
-        // Link interest to user
+        // Link interest to user as learning skill
         await client.query(
-          'INSERT INTO user_interests (user_firebase_uid, skill_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          'INSERT INTO user_learns (user_firebase_uid, skill_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
           [firebaseUid, skillId]
         );
       }
@@ -135,8 +193,9 @@ exports.updateProfile = async (firebaseUid, profileData) => {
   }
 };
 
-// New function to update skill verification status
+// Update skill verification function to work with the new schema
 exports.updateSkillVerification = async (firebaseUid, skillName, verified, score) => {
+  // Use the new skill_verifications table to store verification data
   const client = await pool.connect();
   
   try {
@@ -150,12 +209,97 @@ exports.updateSkillVerification = async (firebaseUid, skillName, verified, score
     
     const skillId = skillRes.rows[0].id;
     
-    // Update verification status
+    // Check if user can teach this skill (exists in user_teaches)
+    const teachesRes = await client.query(
+      'SELECT 1 FROM user_teaches WHERE user_firebase_uid = $1 AND skill_id = $2',
+      [firebaseUid, skillId]
+    );
+    
+    if (teachesRes.rows.length === 0) {
+      throw new Error('User does not have this skill to verify');
+    }
+    
+    // Update or insert verification record
+    await client.query(`
+      INSERT INTO skill_verifications (user_firebase_uid, skill_id, verified, verification_score, verified_at)
+      VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+      ON CONFLICT (user_firebase_uid, skill_id) 
+      DO UPDATE SET 
+        verified = $3,
+        verification_score = $4,
+        verified_at = CURRENT_TIMESTAMP
+    `, [firebaseUid, skillId, verified, score]);
+    
+    await client.query('COMMIT');
+    
+    return { success: true };
+    
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+// Remove a skill from user's profile
+exports.removeSkill = async (firebaseUid, skillName) => {
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    // Get skill ID
+    const skillRes = await client.query('SELECT id FROM skills WHERE name = $1', [skillName]);
+    if (skillRes.rows.length === 0) {
+      throw new Error('Skill not found');
+    }
+    
+    const skillId = skillRes.rows[0].id;
+    
+    // Remove skill from user_teaches (what user can teach)
     await client.query(
-      `UPDATE user_skills 
-       SET verified = $1, verification_score = $2, verified_at = $3
-       WHERE user_firebase_uid = $4 AND skill_id = $5`,
-      [verified, score, verified ? new Date() : null, firebaseUid, skillId]
+      'DELETE FROM user_teaches WHERE user_firebase_uid = $1 AND skill_id = $2',
+      [firebaseUid, skillId]
+    );
+    
+    // Remove skill verification record if it exists
+    await client.query(
+      'DELETE FROM skill_verifications WHERE user_firebase_uid = $1 AND skill_id = $2',
+      [firebaseUid, skillId]
+    );
+    
+    await client.query('COMMIT');
+    
+    return { success: true };
+    
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+// Remove an interest from user's profile
+exports.removeInterest = async (firebaseUid, interestName) => {
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    // Get skill ID (interests are stored as skills)
+    const skillRes = await client.query('SELECT id FROM skills WHERE name = $1', [interestName]);
+    if (skillRes.rows.length === 0) {
+      throw new Error('Interest not found');
+    }
+    
+    const skillId = skillRes.rows[0].id;
+    
+    // Remove interest from user_learns (what user wants to learn)
+    await client.query(
+      'DELETE FROM user_learns WHERE user_firebase_uid = $1 AND skill_id = $2',
+      [firebaseUid, skillId]
     );
     
     await client.query('COMMIT');

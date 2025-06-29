@@ -428,7 +428,6 @@ const Chat = () => {
             {/* Chat Messages */}
             <Box sx={{ 
               flex: 1, 
-              display: 'flex', 
               flexDirection: 'column',
               display: { xs: selectedChat !== null ? 'flex' : 'none', md: 'flex' }
             }}>

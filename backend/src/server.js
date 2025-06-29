@@ -5,6 +5,7 @@ const authRoutes = require('./routes/userRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const matchesRoutes = require('./routes/findMatches');
 const authenticate = require('./middlewares/authenticate');
+const { getAllSkills, getSkillDistribution } = require('./controllers/profileController');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -20,6 +21,10 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRoutes);
+
+// Public skills endpoints (no authentication required)
+app.get('/api/skills', getAllSkills);
+app.get('/api/skills/distribution', getSkillDistribution);
 
 // Protect profile routes with authentication middleware
 app.use('/api/profile', authenticate, profileRoutes);

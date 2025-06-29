@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Typography,
@@ -36,6 +36,7 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import axios from 'axios';
+import { skillsService } from '../services/skillsService';
 
 // Location data with major cities and countries
 const locations = [
@@ -159,6 +160,12 @@ const ProfileSetup = () => {
   const [interests, setInterests] = useState([]);
   const [newSkill, setNewSkill] = useState('');
   const [newInterest, setNewInterest] = useState('');
+  const [availableSkills, setAvailableSkills] = useState([]);
+  const [loadingSkills, setLoadingSkills] = useState(true);
+  const [showVideoAssessment, setShowVideoAssessment] = useState(false);
+  const [currentSkill, setCurrentSkill] = useState(null);
+  const [showCongrats, setShowCongrats] = useState(false);
+  const [lastVerifiedSkill, setLastVerifiedSkill] = useState(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { currentUser } = useAuth();
@@ -167,6 +174,30 @@ const ProfileSetup = () => {
   const { register, handleSubmit, formState: { errors }, watch, setValue, setError } = useForm({
     resolver: yupResolver(schema)
   });
+
+  // Fetch available skills from database
+  useEffect(() => {
+    const fetchSkills = async () => {
+      try {
+        setLoadingSkills(true);
+        const skillsData = await skillsService.getAllSkills();
+        setAvailableSkills(skillsData.map(skill => skill.name));
+      } catch (error) {
+        console.error('Error fetching skills:', error);
+        // Fallback to some common skills if API fails
+        setAvailableSkills([
+          'JavaScript', 'Python', 'React', 'Node.js', 'Java', 'C++', 'SQL', 'Git', 'Docker', 'AWS',
+          'English', 'Spanish', 'French', 'German', 'Japanese', 'Mandarin', 'Italian', 'Portuguese', 'Russian', 'Arabic',
+          'Piano', 'Guitar', 'Violin', 'Drums', 'Singing', 'Music Theory', 'Composition', 'Jazz', 'Classical', 'Rock',
+          'Cooking', 'Photography', 'Drawing', 'Yoga', 'Meditation', 'Chess', 'Public Speaking', 'Creative Writing'
+        ]);
+      } finally {
+        setLoadingSkills(false);
+      }
+    };
+
+    fetchSkills();
+  }, []);
 
   // Debug form errors
   console.log('Form errors:', errors);
@@ -192,9 +223,9 @@ const ProfileSetup = () => {
     }
   ];
 
-  const handleAddSkill = () => {
-    if (newSkill.trim() && !skills.includes(newSkill.trim())) {
-      const updatedSkills = [...skills, newSkill.trim()];
+  const handleAddSkill = (skill) => {
+    if (skill && !skills.includes(skill)) {
+      const updatedSkills = [...skills, skill];
       setSkills(updatedSkills);
       setValue('skills', updatedSkills);
       setNewSkill('');
@@ -207,9 +238,9 @@ const ProfileSetup = () => {
     setValue('skills', updatedSkills);
   };
 
-  const handleAddInterest = () => {
-    if (newInterest.trim() && !interests.includes(newInterest.trim())) {
-      const updatedInterests = [...interests, newInterest.trim()];
+  const handleAddInterest = (interest) => {
+    if (interest && !interests.includes(interest)) {
+      const updatedInterests = [...interests, interest];
       setInterests(updatedInterests);
       setValue('interests', updatedInterests);
       setNewInterest('');
@@ -267,14 +298,14 @@ const ProfileSetup = () => {
   };
 
   const onSubmit = async (data) => {
+    setLoading(true);
+    setErrorMessage('');
+
     try {
       console.log('Form submitted with data:', data);
       console.log('Skills:', skills);
       console.log('Interests:', interests);
       
-      setErrorMessage('');
-      setLoading(true);
-
       const token = await currentUser.getIdToken();
       
       const profileData = {
@@ -417,21 +448,46 @@ const ProfileSetup = () => {
               </Typography>
               
               <Box sx={{ display: 'flex', gap: 2, mb: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-                <TextField
-                  label="Add a skill"
+                <Autocomplete
+                  options={availableSkills.filter(skill => !skills.includes(skill))}
                   value={newSkill}
-                  onChange={(e) => setNewSkill(e.target.value)}
-                  placeholder="e.g., JavaScript, Cooking, Photography"
-                  fullWidth
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddSkill()}
-                  inputProps={{
-                    maxLength: 50
+                  onChange={(event, newValue) => {
+                    if (newValue) {
+                      setNewSkill(newValue);
+                      handleAddSkill(newValue);
+                    }
                   }}
+                  onInputChange={(event, newInputValue) => {
+                    setNewSkill(newInputValue);
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Add a skill"
+                      placeholder="Search and select skills..."
+                      fullWidth
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {loadingSkills ? <CircularProgress color="inherit" size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                  loading={loadingSkills}
+                  freeSolo
+                  selectOnFocus
+                  clearOnBlur
+                  handleHomeEndKeys
+                  sx={{ flex: 1 }}
                 />
                 <Button
                   variant="contained"
-                  onClick={handleAddSkill}
-                  disabled={!newSkill.trim()}
+                  onClick={() => handleAddSkill(newSkill)}
+                  disabled={!newSkill.trim() || skills.includes(newSkill.trim())}
                   sx={{ minWidth: 100, textTransform: 'none' }}
                 >
                   Add
@@ -464,21 +520,46 @@ const ProfileSetup = () => {
               </Typography>
               
               <Box sx={{ display: 'flex', gap: 2, mb: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-                <TextField
-                  label="Add an interest"
+                <Autocomplete
+                  options={availableSkills.filter(skill => !interests.includes(skill))}
                   value={newInterest}
-                  onChange={(e) => setNewInterest(e.target.value)}
-                  placeholder="e.g., Reading, Travel, Music"
-                  fullWidth
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddInterest()}
-                  inputProps={{
-                    maxLength: 50
+                  onChange={(event, newValue) => {
+                    if (newValue) {
+                      setNewInterest(newValue);
+                      handleAddInterest(newValue);
+                    }
                   }}
+                  onInputChange={(event, newInputValue) => {
+                    setNewInterest(newInputValue);
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Add an interest"
+                      placeholder="Search and select interests..."
+                      fullWidth
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {loadingSkills ? <CircularProgress color="inherit" size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                  loading={loadingSkills}
+                  freeSolo
+                  selectOnFocus
+                  clearOnBlur
+                  handleHomeEndKeys
+                  sx={{ flex: 1 }}
                 />
                 <Button
                   variant="contained"
-                  onClick={handleAddInterest}
-                  disabled={!newInterest.trim()}
+                  onClick={() => handleAddInterest(newInterest)}
+                  disabled={!newInterest.trim() || interests.includes(newInterest.trim())}
                   sx={{ minWidth: 100, textTransform: 'none' }}
                 >
                   Add
@@ -538,7 +619,14 @@ const ProfileSetup = () => {
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
                 {skills.map((skill, index) => (
-                  <Chip key={index} label={skill} size="small" color="primary" />
+                  <Chip
+                    key={index}
+                    label={skill}
+                    onDelete={() => handleRemoveSkill(skill)}
+                    color="primary"
+                    variant="outlined"
+                    sx={{ fontWeight: 'bold' }}
+                  />
                 ))}
               </Box>
 
@@ -547,7 +635,14 @@ const ProfileSetup = () => {
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                 {interests.map((interest, index) => (
-                  <Chip key={index} label={interest} size="small" color="secondary" />
+                  <Chip
+                    key={index}
+                    label={interest}
+                    onDelete={() => handleRemoveInterest(interest)}
+                    color="secondary"
+                    variant="outlined"
+                    sx={{ fontWeight: 'bold' }}
+                  />
                 ))}
               </Box>
             </Paper>
