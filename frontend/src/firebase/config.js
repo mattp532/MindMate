@@ -30,13 +30,35 @@ console.log('Final Firebase Config:', {
   measurementId: firebaseConfig.measurementId
 });
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase with error handling
+let app;
+try {
+  app = initializeApp(firebaseConfig);
+  console.log('✅ Firebase app initialized successfully');
+} catch (error) {
+  console.error('❌ Error initializing Firebase app:', error);
+  throw error;
+}
 
 // Initialize Firebase Authentication and get a reference to the service
-export const auth = getAuth(app);
+let auth;
+try {
+  auth = getAuth(app);
+  console.log('✅ Firebase Auth initialized successfully');
+} catch (error) {
+  console.error('❌ Error initializing Firebase Auth:', error);
+  throw error;
+}
 
 // Initialize Cloud Firestore and get a reference to the service
-export const db = getFirestore(app);
+let db;
+try {
+  db = getFirestore(app);
+  console.log('✅ Firestore initialized successfully');
+} catch (error) {
+  console.error('❌ Error initializing Firestore:', error);
+  throw error;
+}
 
+export { auth, db };
 export default app; 

@@ -49,6 +49,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
+import { getCoordinatesWithFallback } from '../services/geocodingService';
 
 // Fix for default markers in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -56,6 +57,27 @@ L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Custom marker icons
+const defaultIcon = new L.Icon({
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+const selectedIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+  iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
 });
 
 const MapUpdater = ({ coords }) => {
@@ -86,6 +108,7 @@ const Dashboard = () => {
   const [message, setMessage] = React.useState('');
   const [userProfile, setUserProfile] = React.useState(null);
   const [profileLoading, setProfileLoading] = React.useState(true);
+  const [transformedMatches, setTransformedMatches] = React.useState([]);
 
   const popularSkills = [
     "JavaScript", "Python", "React", "Node.js", "Data Science", 
@@ -152,19 +175,66 @@ const Dashboard = () => {
     fetchUserProfile();
   }, [currentUser]);
 
-  // Transform backend data to match frontend format
-  const transformedMatches = matches.map((match, index) => ({
-    id: match.firebase_uid,
-    name: match.name || 'Anonymous User',
-    avatar: (match.name || 'A').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase(),
-    skills: match.skills ? match.skills.map(skill => skill.name || skill) : [], // What they can teach
-    interests: match.interests ? match.interests.map(interest => interest.name || interest) : [], // What they want to learn
-    rating: 4.8, // Default rating since we don't have this in backend yet
-    location: match.city && match.country ? `${match.city}, ${match.country}` : 'Location not set',
-    isOnline: true, // Default to online since we don't have this in backend yet
-    lastActive: 'Recently',
-    coordinates: [43.6532 + (index * 0.01), -79.3832 + (index * 0.01)] // Spread out around Toronto
-  }));
+  // Transform backend data to match frontend format with real coordinates
+  React.useEffect(() => {
+    const transformMatchesWithCoordinates = async () => {
+      if (!matches.length) {
+        setTransformedMatches([]);
+        return;
+      }
+
+      try {
+        const transformedData = await Promise.all(
+          matches.map(async (match, index) => {
+            // Get real coordinates for the match's location
+            let coordinates = [43.6532, -79.3832]; // Default to Toronto
+            if (match.city && match.country) {
+              try {
+                coordinates = await getCoordinatesWithFallback(match.city, match.country);
+              } catch (error) {
+                console.error(`Error getting coordinates for ${match.city}, ${match.country}:`, error);
+                // Add small offset to prevent overlapping markers
+                coordinates = [43.6532 + (index * 0.01), -79.3832 + (index * 0.01)];
+              }
+            }
+
+            return {
+              id: match.firebase_uid,
+              name: match.name || 'Anonymous User',
+              avatar: (match.name || 'A').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase(),
+              skills: match.skills ? match.skills.map(skill => skill.name || skill) : [], // What they can teach
+              interests: match.interests ? match.interests.map(interest => interest.name || interest) : [], // What they want to learn
+              rating: 4.8, // Default rating since we don't have this in backend yet
+              location: match.city && match.country ? `${match.city}, ${match.country}` : 'Location not set',
+              isOnline: true, // Default to online since we don't have this in backend yet
+              lastActive: 'Recently',
+              coordinates: coordinates
+            };
+          })
+        );
+
+        setTransformedMatches(transformedData);
+      } catch (error) {
+        console.error('Error transforming matches with coordinates:', error);
+        // Fallback to basic transformation without coordinates
+        const fallbackData = matches.map((match, index) => ({
+          id: match.firebase_uid,
+          name: match.name || 'Anonymous User',
+          avatar: (match.name || 'A').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase(),
+          skills: match.skills ? match.skills.map(skill => skill.name || skill) : [],
+          interests: match.interests ? match.interests.map(interest => interest.name || interest) : [],
+          rating: 4.8,
+          location: match.city && match.country ? `${match.city}, ${match.country}` : 'Location not set',
+          isOnline: true,
+          lastActive: 'Recently',
+          coordinates: [43.6532 + (index * 0.01), -79.3832 + (index * 0.01)] // Fallback to Toronto with offset
+        }));
+        setTransformedMatches(fallbackData);
+      }
+    };
+
+    transformMatchesWithCoordinates();
+  }, [matches]);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -175,7 +245,7 @@ const Dashboard = () => {
   const hasInterest = userProfile?.interests?.length > 0 || false;
   const meetsRequirements = hasVerifiedSkill && hasInterest;
 
-  // Toronto coordinates
+  // Toronto coordinates as fallback
   const torontoCoords = [43.6532, -79.3832];
 
   // Map component with proper error handling
@@ -217,7 +287,17 @@ const Dashboard = () => {
           </>
         )}
         {matches.map((match) => (
-          <Marker key={match.id} position={match.coordinates}>
+          <Marker 
+            key={match.id} 
+            position={match.coordinates}
+            icon={selectedUserId === match.id ? selectedIcon : defaultIcon}
+            eventHandlers={{
+              click: () => {
+                setSelectedCoords(match.coordinates);
+                setSelectedUserId(match.id);
+              }
+            }}
+          >
             <Popup>
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{match.name}</Typography>
