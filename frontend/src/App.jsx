@@ -22,6 +22,8 @@ import {
   Menu,
   MenuItem
 } from '@mui/material';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { 
   Home, 
   Dashboard, 
@@ -485,7 +487,9 @@ const AppContent = () => {
 const App = () => {
   return (
     <AuthProvider>
-      <AppContent />
+      <LocalizationProvider dateAdapter={AdapterDayjs}>
+        <AppContent />
+      </LocalizationProvider>
     </AuthProvider>
   );
 };

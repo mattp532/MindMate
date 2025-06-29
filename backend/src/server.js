@@ -8,11 +8,8 @@ const profileRoutes = require('./routes/profileRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const matchesRoutes = require('./routes/findMatches');
 const authenticate = require('./middlewares/authenticate');
-<<<<<<< HEAD
 const { getAllSkills, getSkillDistribution } = require('./controllers/profileController');
-=======
 const pool = require('./db');
->>>>>>> 7385acdd79898e59a0a815fa75ee36d651b182b2
 
 const app = express();
 const server = createServer(app);

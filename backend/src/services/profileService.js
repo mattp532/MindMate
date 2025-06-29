@@ -172,14 +172,11 @@ exports.updateProfile = async (firebaseUid, profileData) => {
     
     // Handle skills (what user can teach)
     if (skills && skills.length > 0) {
-<<<<<<< HEAD
+      console.log('Processing skills:', skills);
       // Clear existing skills for this user
       await client.query('DELETE FROM user_teaches WHERE user_firebase_uid = $1', [firebaseUid]);
       
       // Add new skills
-=======
-      console.log('Processing skills:', skills);
->>>>>>> 7385acdd79898e59a0a815fa75ee36d651b182b2
       for (const skillName of skills) {
         // Insert skill if it doesn't exist
         let skillRes = await client.query(
