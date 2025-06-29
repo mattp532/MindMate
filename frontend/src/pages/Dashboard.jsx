@@ -285,7 +285,7 @@ const Dashboard = () => {
                   WebkitTextFillColor: 'transparent'
                 }}
               >
-                Welcome back, User! 👋
+                Welcome back, {userProfile?.name || currentUser?.displayName || 'User'}! 👋
               </Typography>
               <Typography 
                 variant="h6" 

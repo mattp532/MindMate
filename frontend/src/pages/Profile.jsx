@@ -83,8 +83,6 @@ const Profile = () => {
   const [lastVerifiedSkill, setLastVerifiedSkill] = React.useState(null);
   const [savingSkill, setSavingSkill] = React.useState(false);
   const [savingInterest, setSavingInterest] = React.useState(false);
-  const [skillSaveMessage, setSkillSaveMessage] = React.useState('');
-  const [interestSaveMessage, setInterestSaveMessage] = React.useState('');
 
   // Fetch available skills from database
   React.useEffect(() => {
@@ -207,19 +205,15 @@ const Profile = () => {
     setLastVerifiedSkill(null);
     setSavingSkill(false);
     setSavingInterest(false);
-    setSkillSaveMessage('');
-    setInterestSaveMessage('');
   }, [userId]);
 
   // Add a new skill and immediately start verification
   const handleAddSkill = async (skillName) => {
     if (skillName && !skills.some(s => s.name.toLowerCase() === skillName.toLowerCase())) {
       setSavingSkill(true);
-      setSkillSaveMessage('');
       
       const newSkillObj = { name: skillName, verified: false, score: null };
       setSkills([...skills, newSkillObj]);
-      setNewSkill(""); // Clear the input field
       
       // Save the new skill to the database immediately
       try {
@@ -236,20 +230,14 @@ const Profile = () => {
           }
         });
         console.log('New skill saved to database:', skillName);
-        setSkillSaveMessage('Skill added successfully!');
-        setTimeout(() => setSkillSaveMessage(''), 3000); // Clear message after 3 seconds
       } catch (error) {
         console.error('Error saving new skill to database:', error);
-        setSkillSaveMessage('Failed to save skill. Please try again.');
-        setTimeout(() => setSkillSaveMessage(''), 3000); // Clear message after 3 seconds
       } finally {
         setSavingSkill(false);
       }
     } else if (skillName && skills.some(s => s.name.toLowerCase() === skillName.toLowerCase())) {
       // If skill already exists, just clear the input
       setNewSkill("");
-      setSkillSaveMessage('Skill already exists!');
-      setTimeout(() => setSkillSaveMessage(''), 3000);
     }
   };
 
@@ -257,11 +245,9 @@ const Profile = () => {
   const handleAddInterest = async (interestName) => {
     if (interestName && !interests.some(i => i.name.toLowerCase() === interestName.toLowerCase())) {
       setSavingInterest(true);
-      setInterestSaveMessage('');
       
       const newInterestObj = { name: interestName };
       setInterests([...interests, newInterestObj]);
-      setNewInterest(""); // Clear the input field
       
       // Save the new interest to the database immediately
       try {
@@ -278,27 +264,20 @@ const Profile = () => {
           }
         });
         console.log('New interest saved to database:', interestName);
-        setInterestSaveMessage('Interest added successfully!');
-        setTimeout(() => setInterestSaveMessage(''), 3000); // Clear message after 3 seconds
       } catch (error) {
         console.error('Error saving new interest to database:', error);
-        setInterestSaveMessage('Failed to save interest. Please try again.');
-        setTimeout(() => setInterestSaveMessage(''), 3000); // Clear message after 3 seconds
       } finally {
         setSavingInterest(false);
       }
     } else if (interestName && interests.some(i => i.name.toLowerCase() === interestName.toLowerCase())) {
       // If interest already exists, just clear the input
       setNewInterest("");
-      setInterestSaveMessage('Interest already exists!');
-      setTimeout(() => setInterestSaveMessage(''), 3000);
     }
   };
 
   // Remove an interest
   const handleRemoveInterest = async (interestToRemove) => {
     try {
-      setSavingInterest(true);
       const token = await currentUser.getIdToken();
       
       // Remove from backend
@@ -313,25 +292,13 @@ const Profile = () => {
       
       // Remove from local state
       setInterests(interests.filter(interest => interest.name !== interestToRemove));
-      setInterestSaveMessage(`Interest "${interestToRemove}" removed successfully!`);
-      
-      // Clear message after 3 seconds
-      setTimeout(() => setInterestSaveMessage(''), 3000);
-      
     } catch (error) {
       console.error('Error removing interest:', error);
-      setInterestSaveMessage('Failed to remove interest. Please try again.');
-      
-      // Clear error message after 3 seconds
-      setTimeout(() => setInterestSaveMessage(''), 3000);
-    } finally {
-      setSavingInterest(false);
     }
   };
 
   const handleRemoveSkill = async (skillToRemove) => {
     try {
-      setSavingSkill(true);
       const token = await currentUser.getIdToken();
       
       // Remove from backend
@@ -346,19 +313,8 @@ const Profile = () => {
       
       // Remove from local state
       setSkills(skills.filter(skill => skill.name !== skillToRemove));
-      setSkillSaveMessage(`Skill "${skillToRemove}" removed successfully!`);
-      
-      // Clear message after 3 seconds
-      setTimeout(() => setSkillSaveMessage(''), 3000);
-      
     } catch (error) {
       console.error('Error removing skill:', error);
-      setSkillSaveMessage('Failed to remove skill. Please try again.');
-      
-      // Clear error message after 3 seconds
-      setTimeout(() => setSkillSaveMessage(''), 3000);
-    } finally {
-      setSavingSkill(false);
     }
   };
 
@@ -570,7 +526,7 @@ const Profile = () => {
                   value={newSkill}
                   onChange={(event, newValue) => {
                     if (newValue) {
-                      setNewSkill(newValue);
+                      setNewSkill(""); // Clear the input immediately
                       handleAddSkill(newValue);
                     }
                   }}
@@ -618,16 +574,6 @@ const Profile = () => {
                   {savingSkill ? 'Saving...' : 'Add'}
                 </Button>
               </Box>
-              
-              {/* Skill save message */}
-              {skillSaveMessage && (
-                <Alert 
-                  severity={skillSaveMessage.includes('successfully') ? 'success' : skillSaveMessage.includes('already exists') ? 'info' : 'error'} 
-                  sx={{ mb: 2, borderRadius: 2 }}
-                >
-                  {skillSaveMessage}
-                </Alert>
-              )}
               
               <Divider sx={{ my: 2 }} />
               <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 1, fontSize: { xs: '1rem', md: '1.15rem' } }}>Your Skills</Typography>
@@ -704,7 +650,7 @@ const Profile = () => {
                   value={newInterest}
                   onChange={(event, newValue) => {
                     if (newValue) {
-                      setNewInterest(newValue);
+                      setNewInterest(""); // Clear the input immediately
                       handleAddInterest(newValue);
                     }
                   }}
@@ -752,16 +698,6 @@ const Profile = () => {
                   {savingInterest ? 'Saving...' : 'Add'}
                 </Button>
               </Box>
-              
-              {/* Interest save message */}
-              {interestSaveMessage && (
-                <Alert 
-                  severity={interestSaveMessage.includes('successfully') ? 'success' : interestSaveMessage.includes('already exists') ? 'info' : 'error'} 
-                  sx={{ mb: 2, borderRadius: 2 }}
-                >
-                  {interestSaveMessage}
-                </Alert>
-              )}
               
               <Divider sx={{ my: 2 }} />
               <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 1, fontSize: { xs: '0.9rem', md: '1rem' } }}>Your Interests</Typography>
