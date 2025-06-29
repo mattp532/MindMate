@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const authRoutes = require('./routes/userRoutes');
 const profileRoutes = require('./routes/profileRoutes');
+const matchesRoutes = require('./routes/findMatches');
 const authenticate = require('./middlewares/authenticate');
 
 const app = express();
@@ -23,15 +24,12 @@ app.use('/api/auth', authRoutes);
 // Protect profile routes with authentication middleware
 app.use('/api/profile', authenticate, profileRoutes);
 
+// Protect matches routes with authentication middleware
+app.use('/api', authenticate, matchesRoutes);
+
 // Basic health check or root route
 app.get('/', (req, res) => {
   res.send('API is running');
-});
-
-// Global error handler (optional)
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.statusCode || 500).json({ error: err.message || 'Internal Server Error' });
 });
 
 // Start server
