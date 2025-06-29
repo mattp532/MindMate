@@ -402,6 +402,22 @@ const Chat = () => {
     setReactionMsgId(null);
   };
 
+  // Add a handler to remove or decrement emoji reactions
+  const handleRemoveReaction = (msgId, emoji) => {
+    setMessageReactions(prev => {
+      const prevReactions = prev[msgId] || [];
+      const found = prevReactions.find(r => r.emoji === emoji);
+      if (!found) return prev;
+      let newReactions;
+      if (found.count > 1) {
+        newReactions = prevReactions.map(r => r.emoji === emoji ? { ...r, count: r.count - 1 } : r);
+      } else {
+        newReactions = prevReactions.filter(r => r.emoji !== emoji);
+      }
+      return { ...prev, [msgId]: newReactions };
+    });
+  };
+
   return (
     <Box sx={{ 
       minHeight: '100vh',
@@ -790,7 +806,7 @@ const Chat = () => {
                               {messageReactions[msg.id] && messageReactions[msg.id].length > 0 && (
                                 <Box sx={{ display: 'flex', gap: 0.5, ml: 1, mt: 0.5 }}>
                                   {messageReactions[msg.id].map((r, i) => (
-                                    <Box key={i} sx={{ px: 1, py: 0.2, bgcolor: 'rgba(255,255,255,0.8)', borderRadius: 2, fontSize: '1.1rem', display: 'flex', alignItems: 'center', border: '1px solid #e0e7ff' }}>
+                                    <Box key={i} sx={{ px: 1, py: 0.2, bgcolor: 'rgba(255,255,255,0.8)', borderRadius: 2, fontSize: '1.1rem', display: 'flex', alignItems: 'center', border: '1px solid #e0e7ff', cursor: 'pointer' }} onClick={() => handleRemoveReaction(msg.id, r.emoji)}>
                                       {r.emoji} <span style={{ fontSize: '0.85rem', marginLeft: 4 }}>{r.count > 1 ? r.count : ''}</span>
                                     </Box>
                                   ))}
