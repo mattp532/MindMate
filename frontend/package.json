@@ -11,12 +11,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@date-io/dayjs": "^3.2.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@hookform/resolvers": "^5.1.1",
     "@mui/icons-material": "^7.1.2",
+    "@mui/lab": "^7.0.0-beta.14",
     "@mui/material": "^7.1.2",
+    "@mui/x-date-pickers": "^8.6.0",
     "axios": "^1.10.0",
+    "dayjs": "^1.11.13",
     "firebase": "^11.9.1",
     "leaflet": "^1.9.4",
     "react": "^19.1.0",
@@ -24,7 +28,7 @@
     "react-hook-form": "^7.59.0",
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.6.3",
-    "socket.io-client": "^4.7.4",
+    "socket.io-client": "^4.8.1",
     "yup": "^1.6.1"
   },
   "devDependencies": {

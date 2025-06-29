@@ -24,7 +24,9 @@ import {
   useTheme,
   useMediaQuery,
   Tabs,
-  Tab
+  Tab,
+  Alert,
+  CircularProgress
 } from '@mui/material';
 import { 
   Search, 
@@ -45,6 +47,8 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import axios from 'axios';
 
 // Fix for default markers in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -73,54 +77,63 @@ const Dashboard = () => {
   const [selectedUserId, setSelectedUserId] = React.useState(null);
   const [searchSkill, setSearchSkill] = React.useState("");
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
 
-  // Mock data for demonstration
-  const mockMatches = [
-    {
-      id: 1,
-      name: "Sarah Johnson",
-      avatar: "SJ",
-      skills: ["JavaScript", "React", "Node.js"],
-      rating: 4.8,
-      location: "New York, NY",
-      isOnline: true,
-      lastActive: "2 min ago",
-      coordinates: [40.7128, -74.0060]
-    },
-    {
-      id: 2,
-      name: "Mike Chen",
-      avatar: "MC",
-      skills: ["Python", "Data Science", "Machine Learning"],
-      rating: 4.9,
-      location: "San Francisco, CA",
-      isOnline: false,
-      lastActive: "1 hour ago",
-      coordinates: [37.7749, -122.4194]
-    },
-    {
-      id: 3,
-      name: "Emma Davis",
-      avatar: "ED",
-      skills: ["UI/UX Design", "Figma", "Adobe Creative Suite"],
-      rating: 4.7,
-      location: "Austin, TX",
-      isOnline: true,
-      lastActive: "5 min ago",
-      coordinates: [30.2672, -97.7431]
-    }
-  ];
+  // Real data state
+  const [matches, setMatches] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState('');
+  const [message, setMessage] = React.useState('');
 
   const popularSkills = [
     "JavaScript", "Python", "React", "Node.js", "Data Science", 
     "UI/UX Design", "Machine Learning", "Graphic Design"
   ];
 
-  const recentActivity = [
-    { type: "message", user: "Sarah Johnson", action: "sent you a message", time: "2 min ago" },
-    { type: "match", user: "Mike Chen", action: "matched with you", time: "1 hour ago" },
-    { type: "session", user: "Emma Davis", action: "scheduled a session", time: "3 hours ago" }
-  ];
+  // Fetch matches from backend
+  React.useEffect(() => {
+    const fetchMatches = async () => {
+      if (!currentUser) return;
+      
+      try {
+        setLoading(true);
+        setError('');
+        const token = await currentUser.getIdToken();
+        
+        const response = await axios.post('http://localhost:8080/api/matches', {}, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        const { matches: matchesData, message: responseMessage } = response.data;
+        setMatches(matchesData || []);
+        setMessage(responseMessage || '');
+        
+      } catch (error) {
+        console.error('Error fetching matches:', error);
+        setError('Failed to load matches. Please try again.');
+        setMatches([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMatches();
+  }, [currentUser]);
+
+  // Transform backend data to match frontend format
+  const transformedMatches = matches.map((match, index) => ({
+    id: match.firebase_uid,
+    name: match.name || 'Anonymous User',
+    avatar: (match.name || 'A').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase(),
+    skills: match.skills ? match.skills.map(skill => skill.name || skill) : [],
+    rating: 4.8, // Default rating since we don't have this in backend yet
+    location: match.city && match.country ? `${match.city}, ${match.country}` : 'Location not set',
+    isOnline: true, // Default to online since we don't have this in backend yet
+    lastActive: 'Recently',
+    coordinates: [43.6532 + (index * 0.01), -79.3832 + (index * 0.01)] // Spread out around Toronto
+  }));
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -187,8 +200,8 @@ const Dashboard = () => {
 
   // Filter matches by skill
   const filteredMatches = searchSkill.trim() === ""
-    ? mockMatches
-    : mockMatches.filter(match =>
+    ? transformedMatches
+    : transformedMatches.filter(match =>
         match.skills.some(skill =>
           skill.toLowerCase().includes(searchSkill.trim().toLowerCase())
         )
@@ -254,48 +267,79 @@ const Dashboard = () => {
               <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', md: '2rem' }, color: 'text.primary' }}>Your Matches</Typography>
               <Button variant="outlined" size="small" startIcon={<FilterList />} sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 600, borderColor: 'primary.main', color: 'primary.main', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.08)', borderColor: 'primary.dark' } }}>Filter</Button>
             </Box>
-            <List sx={{ p: 0 }}>
-              {filteredMatches.map((match, index) => (
-                <Grow key={match.id} in={true} timeout={800 + index * 200}>
-                  <ListItem 
-                    sx={{ px: 0, py: 1, cursor: 'pointer', bgcolor: selectedUserId === match.id ? 'rgba(102, 126, 234, 0.08)' : 'inherit' }}
-                    onClick={() => { setSelectedCoords(match.coordinates); setSelectedUserId(match.id); }}
-                  >
-                    <ListItemButton sx={{ borderRadius: 3, mb: 2, p: 3, transition: 'all 0.3s ease-in-out', border: '1px solid rgba(0,0,0,0.06)', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.04)', transform: 'translateY(-2px)', boxShadow: '0 8px 25px rgba(0,0,0,0.1)', borderColor: 'primary.main' } }}>
-                      <ListItemAvatar>
-                        <Badge overlap="circular" anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} badgeContent={<Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: match.isOnline ? 'success.main' : 'grey.400', border: '3px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }} />}> <Avatar sx={{ width: 64, height: 64, bgcolor: 'primary.main', fontSize: '1.5rem', fontWeight: 700, boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)' }}>{match.avatar}</Avatar> </Badge>
-                      </ListItemAvatar>
-                      <ListItemText primary={<Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}><Typography variant="h6" sx={{ fontWeight: 700, fontSize: { xs: '1rem', md: '1.25rem' }, color: 'text.primary' }}>{match.name}</Typography><Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><Star sx={{ color: 'warning.main', fontSize: 18 }} /><Typography variant="body2" sx={{ fontWeight: 600 }}>{match.rating}</Typography></Box></Box>} secondary={<Box><Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}><LocationOn sx={{ fontSize: 16, color: 'text.secondary' }} /><Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>{match.location}</Typography><Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 1 }}>{match.isOnline ? (<OnlinePrediction sx={{ fontSize: 16, color: 'success.main' }} />) : (<Schedule sx={{ fontSize: 16, color: 'text.secondary' }} />)}<Typography variant="caption" color="text.secondary">{match.lastActive}</Typography></Box></Box><Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>{match.skills.map((skill, skillIndex) => (<Chip key={skillIndex} label={skill} size="small" sx={{ bgcolor: 'rgba(102, 126, 234, 0.1)', color: 'primary.main', fontWeight: 600, fontSize: '0.75rem', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.2)' } }} />))}</Box></Box>} />
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, ml: 2 }}>
-                        <Button 
-                          variant="contained" 
-                          size="small" 
-                          startIcon={<Message />} 
-                          sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)', '&:hover': { boxShadow: '0 6px 16px rgba(102, 126, 234, 0.4)', transform: 'translateY(-1px)' } }}
-                          onClick={e => { e.stopPropagation(); navigate(`/chat?userId=${match.id}`); }}
-                        >
-                          Message
-                        </Button>
-                        <Button 
-                          variant="outlined" 
-                          size="small" 
-                          startIcon={<VideoCall />} 
-                          sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, borderColor: 'primary.main', color: 'primary.main', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.08)', borderColor: 'primary.dark' } }}
-                          onClick={e => e.stopPropagation()}
-                        >
-                          Call
-                        </Button>
-                      </Box>
-                    </ListItemButton>
-                  </ListItem>
-                </Grow>
-              ))}
-              {filteredMatches.length === 0 && (
-                <Typography sx={{ p: 3, textAlign: 'center', color: 'text.secondary', fontWeight: 600 }}>
-                  No matches found for that skill.
+            
+            {/* Loading State */}
+            {loading && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4 }}>
+                <CircularProgress size={40} />
+                <Typography variant="body1" sx={{ ml: 2, color: 'text.secondary' }}>
+                  Finding your matches...
                 </Typography>
-              )}
-            </List>
+              </Box>
+            )}
+            
+            {/* Error State */}
+            {error && !loading && (
+              <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+                {error}
+              </Alert>
+            )}
+            
+            {/* Message from backend (eligibility or no matches) */}
+            {message && !loading && !error && (
+              <Alert 
+                severity={message.includes('need to') ? 'warning' : message.includes('Found') ? 'success' : 'info'} 
+                sx={{ mb: 3, borderRadius: 2 }}
+              >
+                {message}
+              </Alert>
+            )}
+            
+            {/* Matches List */}
+            {!loading && !error && (
+              <List sx={{ p: 0 }}>
+                {filteredMatches.map((match, index) => (
+                  <Grow key={match.id} in={true} timeout={800 + index * 200}>
+                    <ListItem 
+                      sx={{ px: 0, py: 1, cursor: 'pointer', bgcolor: selectedUserId === match.id ? 'rgba(102, 126, 234, 0.08)' : 'inherit' }}
+                      onClick={() => { setSelectedCoords(match.coordinates); setSelectedUserId(match.id); }}
+                    >
+                      <ListItemButton sx={{ borderRadius: 3, mb: 2, p: 3, transition: 'all 0.3s ease-in-out', border: '1px solid rgba(0,0,0,0.06)', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.04)', transform: 'translateY(-2px)', boxShadow: '0 8px 25px rgba(0,0,0,0.1)', borderColor: 'primary.main' } }}>
+                        <ListItemAvatar>
+                          <Badge overlap="circular" anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} badgeContent={<Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: match.isOnline ? 'success.main' : 'grey.400', border: '3px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }} />}> <Avatar sx={{ width: 64, height: 64, bgcolor: 'primary.main', fontSize: '1.5rem', fontWeight: 700, boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)' }}>{match.avatar}</Avatar> </Badge>
+                        </ListItemAvatar>
+                        <ListItemText primary={<Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}><Typography variant="h6" sx={{ fontWeight: 700, fontSize: { xs: '1rem', md: '1.25rem' }, color: 'text.primary' }}>{match.name}</Typography><Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><Star sx={{ color: 'warning.main', fontSize: 18 }} /><Typography variant="body2" sx={{ fontWeight: 600 }}>{match.rating}</Typography></Box></Box>} secondary={<Box><Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}><LocationOn sx={{ fontSize: 16, color: 'text.secondary' }} /><Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>{match.location}</Typography><Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 1 }}>{match.isOnline ? (<OnlinePrediction sx={{ fontSize: 16, color: 'success.main' }} />) : (<Schedule sx={{ fontSize: 16, color: 'text.secondary' }} />)}<Typography variant="caption" color="text.secondary">{match.lastActive}</Typography></Box></Box><Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>{match.skills.map((skill, skillIndex) => (<Chip key={skillIndex} label={skill} size="small" sx={{ bgcolor: 'rgba(102, 126, 234, 0.1)', color: 'primary.main', fontWeight: 600, fontSize: '0.75rem', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.2)' } }} />))}</Box></Box>} />
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, ml: 2 }}>
+                          <Button 
+                            variant="contained" 
+                            size="small" 
+                            startIcon={<Message />} 
+                            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)', '&:hover': { boxShadow: '0 6px 16px rgba(102, 126, 234, 0.4)', transform: 'translateY(-1px)' } }}
+                            onClick={e => { e.stopPropagation(); navigate(`/chat?userId=${match.id}`); }}
+                          >
+                            Message
+                          </Button>
+                          <Button 
+                            variant="outlined" 
+                            size="small" 
+                            startIcon={<VideoCall />} 
+                            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, borderColor: 'primary.main', color: 'primary.main', '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.08)', borderColor: 'primary.dark' } }}
+                            onClick={e => e.stopPropagation()}
+                          >
+                            Call
+                          </Button>
+                        </Box>
+                      </ListItemButton>
+                    </ListItem>
+                  </Grow>
+                ))}
+                {filteredMatches.length === 0 && !loading && !error && !message?.includes('need to') && (
+                  <Typography sx={{ p: 3, textAlign: 'center', color: 'text.secondary', fontWeight: 600 }}>
+                    No matches found for that skill.
+                  </Typography>
+                )}
+              </List>
+            )}
           </Paper>
         </Box>
         <Box sx={{ 

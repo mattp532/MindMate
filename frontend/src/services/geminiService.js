@@ -188,73 +188,77 @@ class GeminiService {
         size: 'Video file uploaded successfully'
       };
       
-      const prompt = `As an AI assessment expert for MindMate, I need you to provide a comprehensive teaching assessment for a user who is verifying their skill: "${skillName}".
+      const prompt = `You are an expert teaching assessor for MindMate. Your task is to provide a highly accurate, fair, and actionable assessment for a user who is verifying their skill: "${skillName}".
 
-      Video file information: ${JSON.stringify(fileInfo)}
-      
-      IMPORTANT: The user is supposed to demonstrate their knowledge and teaching ability in the skill "${skillName}". If the video is NOT about "${skillName}", or is about a different topic, you MUST give a lower score (for example, below 80) and clearly mention in the feedback that the video topic did not match the required skill. If the video is highly relevant to "${skillName}", give a higher score and positive feedback.
-      
-      Since I cannot directly analyze the video content, you may infer the topic from the video file name or user input, and simulate a realistic assessment. Consider common teaching strengths and areas for improvement.
-      
-      Please provide a comprehensive assessment in JSON format with the following structure:
-      {
-        "score": 85,
-        "overallFeedback": "Your teaching demonstration shows strong potential with clear communication and good subject knowledge. Here's how you can improve...",
-        "categories": [
-          {
-            "name": "Communication Skills",
-            "description": "Clarity, articulation, and ability to explain concepts",
-            "score": 90,
-            "icon": "Psychology",
-            "strengths": ["Clear pronunciation", "Good pacing"],
-            "improvements": ["Vary your tone more", "Add more pauses for emphasis"]
-          },
-          {
-            "name": "Subject Knowledge",
-            "description": "Depth of understanding and expertise in the topic",
-            "score": 85,
-            "icon": "School",
-            "strengths": ["Demonstrates expertise", "Uses relevant examples"],
-            "improvements": ["Provide more context", "Connect concepts better"]
-          },
-          {
-            "name": "Teaching Methodology",
-            "description": "Structure, organization, and pedagogical approach",
-            "score": 80,
-            "icon": "TrendingUp",
-            "strengths": ["Logical flow", "Good introduction"],
-            "improvements": ["Add more structure", "Include learning objectives"]
-          },
-          {
-            "name": "Engagement",
-            "description": "Ability to maintain interest and connect with audience",
-            "score": 85,
-            "icon": "Assessment",
-            "strengths": ["Enthusiastic delivery", "Good eye contact"],
-            "improvements": ["Ask more questions", "Use more interactive elements"]
-          }
-        ],
-        "recommendations": [
-          "Consider adding more visual aids to enhance explanations",
-          "Practice varying your tone to maintain audience engagement",
-          "Include more real-world examples to make concepts relatable",
-          "Structure your content with clear learning objectives"
-        ],
-        "nextSteps": [
-          "Practice your presentation skills with a friend or colleague",
-          "Record yourself teaching different topics to build confidence",
-          "Study successful online educators to learn best practices",
-          "Consider taking a public speaking course to improve delivery"
-        ],
-        "encouragement": "You have a solid foundation for teaching! With practice and the suggestions above, you'll become an excellent educator."
-      }
-      
-      Scoring criteria:
-      - 80-100: Excellent - Can proceed with profile (video is highly relevant to "${skillName}")
-      - 60-79: Good - Needs improvement, can resubmit (video is only somewhat relevant or missing some aspects)
-      - Below 60: Needs significant improvement, must resubmit (video is not about "${skillName}", or is off-topic)
-      
-      Be realistic but encouraging in your assessment. Provide specific, actionable feedback that will help the user improve. Generate a score between 75-95 to be encouraging but realistic, but penalize off-topic videos as described above.`;
+Video file information: ${JSON.stringify(fileInfo)}
+
+IMPORTANT:
+- The user must demonstrate both knowledge and teaching ability in "${skillName}".
+- If the video is NOT about "${skillName}" (e.g., the topic is unrelated, or the user does not teach or explain "${skillName}"), you MUST give a low score (below 80) and clearly state in the feedback that the video did not match the required skill.
+- If the video is highly relevant and demonstrates strong teaching of "${skillName}", give a higher score and provide positive, specific feedback.
+- If the video is only partially relevant, or the teaching is weak, give a moderate score and explain what was missing.
+
+You cannot directly analyze the video content, but you may infer the topic from the video file name, user input, or context. Simulate a realistic assessment as if you watched the video.
+
+Your assessment must be in JSON format with the following structure:
+{
+  "score": 85, // integer, 0-100
+  "overallFeedback": "Your teaching demonstration shows strong potential with clear communication and good subject knowledge. Here's how you can improve...",
+  "categories": [
+    {
+      "name": "Communication Skills",
+      "description": "Clarity, articulation, and ability to explain concepts",
+      "score": 90,
+      "icon": "Psychology",
+      "strengths": ["Clear pronunciation", "Good pacing"],
+      "improvements": ["Vary your tone more", "Add more pauses for emphasis"]
+    },
+    {
+      "name": "Subject Knowledge",
+      "description": "Depth of understanding and expertise in the topic",
+      "score": 85,
+      "icon": "School",
+      "strengths": ["Demonstrates expertise", "Uses relevant examples"],
+      "improvements": ["Provide more context", "Connect concepts better"]
+    },
+    {
+      "name": "Teaching Methodology",
+      "description": "Structure, organization, and pedagogical approach",
+      "score": 80,
+      "icon": "TrendingUp",
+      "strengths": ["Logical flow", "Good introduction"],
+      "improvements": ["Add more structure", "Include learning objectives"]
+    },
+    {
+      "name": "Engagement",
+      "description": "Ability to maintain interest and connect with audience",
+      "score": 85,
+      "icon": "Assessment",
+      "strengths": ["Enthusiastic delivery", "Good eye contact"],
+      "improvements": ["Ask more questions", "Use more interactive elements"]
+    }
+  ],
+  "recommendations": [
+    "Consider adding more visual aids to enhance explanations",
+    "Practice varying your tone to maintain audience engagement",
+    "Include more real-world examples to make concepts relatable",
+    "Structure your content with clear learning objectives"
+  ],
+  "nextSteps": [
+    "Practice your presentation skills with a friend or colleague",
+    "Record yourself teaching different topics to build confidence",
+    "Study successful online educators to learn best practices",
+    "Consider taking a public speaking course to improve delivery"
+  ],
+  "encouragement": "You have a solid foundation for teaching! With practice and the suggestions above, you'll become an excellent educator."
+}
+
+Scoring criteria:
+- 80-100: Excellent – Video is highly relevant to "${skillName}" and demonstrates strong teaching ability.
+- 60-79: Good – Video is somewhat relevant or teaching is incomplete; provide clear suggestions for improvement.
+- Below 60: Needs significant improvement – Video is off-topic or does not demonstrate teaching of "${skillName}"; explain what was missing and how to improve.
+
+Be realistic, specific, and encouraging. Always provide actionable feedback and reference the relevance to "${skillName}" in your assessment. Penalize off-topic or irrelevant videos as described above.`;
 
       console.log('Gemini: Sending request to API...');
       

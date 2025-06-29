@@ -45,6 +45,7 @@ import DashboardPage from './pages/Dashboard';
 import Profile from './pages/Profile';
 import ProfileSetup from './pages/ProfileSetup';
 import ChatPage from './pages/Chat';
+import VideoCall from './pages/VideoCall';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -466,6 +467,11 @@ const AppContent = () => {
               <Route path="/chat" element={
                 <ProtectedRoute>
                   <ChatPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/video-call/:roomId" element={
+                <ProtectedRoute>
+                  <VideoCall />
                 </ProtectedRoute>
               } />
             </Routes>

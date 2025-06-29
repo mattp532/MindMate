@@ -6,6 +6,7 @@ const { Server } = require('socket.io');
 const authRoutes = require('./routes/userRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const matchesRoutes = require('./routes/findMatches');
 const authenticate = require('./middlewares/authenticate');
 const pool = require('./db');
 
@@ -36,6 +37,9 @@ app.use('/api/chat', chatRoutes);
 
 // Protect profile routes with authentication middleware
 app.use('/api/profile', authenticate, profileRoutes);
+
+// Protect matches routes with authentication middleware
+app.use('/api', authenticate, matchesRoutes);
 
 // Basic health check or root route
 app.get('/', (req, res) => {

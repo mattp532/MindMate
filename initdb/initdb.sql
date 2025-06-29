@@ -9,8 +9,6 @@ CREATE TABLE users (
   longitude NUMERIC(9,6),
   city VARCHAR(100),
   country VARCHAR(100),
-  user_type VARCHAR(20) DEFAULT 'student', -- 'student' or 'teacher'
-  hourly_rate NUMERIC(8,2), -- For teachers
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
